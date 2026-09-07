@@ -1,0 +1,221 @@
+<template>
+  <view class="page">
+    <!-- 顶部导航：搜索栏 -->
+    <view class="head" :style="{ paddingTop: statusBarHeight + 'px' }">
+      <view class="search-bar" @tap="onSearch">
+        <text class="search-icon">🔍</text>
+        <text class="search-placeholder">搜索帖子 / 吧</text>
+      </view>
+    </view>
+
+    <!-- 足迹栏：横向滚动头像（带红角标） -->
+    <view class="footprint-section">
+      <view class="footprint-title">足迹</view>
+      <scroll-view v-if="footprints.length" class="footprint-scroll" scroll-x :show-scrollbar="false">
+        <view class="footprint-item" v-for="f in footprints" :key="f.id" @tap="goBar(f)">
+          <view class="fp-avatar">
+            <text class="fp-icon">{{ f.icon }}</text>
+            <view v-if="f.badge > 0" class="fp-badge">{{ f.badge }}</view>
+          </view>
+          <text class="fp-name">{{ f.name }}</text>
+        </view>
+      </scroll-view>
+      <view v-else class="login-tip" @tap="goLogin">登录后查看足迹</view>
+    </view>
+
+    <!-- 关注的吧：两列网格 -->
+    <view class="follow-section">
+      <view class="section-title">关注的吧</view>
+      <view v-if="followBars.length" class="follow-grid">
+        <view class="follow-item" v-for="b in followBars" :key="b.id" @tap="goBar(b)">
+          <text class="follow-icon">{{ b.icon }}</text>
+          <view class="follow-info">
+            <text class="follow-name">{{ b.name }}</text>
+            <text class="follow-desc">{{ b.desc }}</text>
+          </view>
+        </view>
+      </view>
+      <view v-else class="login-tip" @tap="goLogin">登录后查看关注的吧</view>
+    </view>
+
+    <!-- 吧单：集合分为两列，卡片为“最新帖子图片 + 吧头像 + 吧名”（瀑布流拼合，上下不留空） -->
+    <view class="group" v-for="g in barGroups" :key="g.id">
+      <view class="section-title">{{ g.title }}</view>
+      <view class="waterfall-box" :class="{ collapsed: !g.expanded }">
+        <view class="waterfall">
+          <view class="waterfall-col">
+            <view class="bar-card" v-for="b in leftBars(g)" :key="b.id" @tap="goBar(b)">
+              <image class="bar-img" :src="b.img" mode="widthFix" />
+              <view class="bar-card-footer">
+                <view class="bar-card-icon">{{ b.icon }}</view>
+                <text class="bar-card-name">{{ b.name }}</text>
+              </view>
+            </view>
+          </view>
+          <view class="waterfall-col">
+            <view class="bar-card" v-for="b in rightBars(g)" :key="b.id" @tap="goBar(b)">
+              <image class="bar-img" :src="b.img" mode="widthFix" />
+              <view class="bar-card-footer">
+                <view class="bar-card-icon">{{ b.icon }}</view>
+                <text class="bar-card-name">{{ b.name }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+        <!-- 折叠时：羽化遮罩 + 展开按钮（压在卡片上） -->
+        <view v-if="!g.expanded && g.bars.length > g.limit" class="more-mask">
+          <view class="more-btn" @tap="toggleGroup(g)">
+            <text class="more-text">展开更多</text>
+            <text class="more-arrow">▼</text>
+          </view>
+        </view>
+      </view>
+      <!-- 展开时：收起按钮（独立一行） -->
+      <view v-if="g.expanded && g.bars.length > g.limit" class="more-collapse" @tap="toggleGroup(g)">
+        <text class="more-text">收起</text>
+        <text class="more-arrow">▲</text>
+      </view>
+    </view>
+
+    <tab-bar current="enter" />
+  </view>
+</template>
+
+<script setup>
+import { ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import { getFootprints, getFollowedBars, getBars } from '../../utils/store'
+
+// 状态栏高度（H5 为 0，App/小程序用于适配刘海屏）
+const statusBarHeight = uni.getSystemInfoSync().statusBarHeight || 0
+
+// 足迹 / 关注的吧：游客为空，登录后展示
+const footprints = ref([])
+const followBars = ref([])
+
+onShow(() => {
+  footprints.value = getFootprints()
+  followBars.value = getFollowedBars().map(id => {
+    const b = getBars().find(x => x.id === id)
+    return b ? { id: b.id, icon: b.icon, name: b.name, desc: '已关注' } : null
+  }).filter(Boolean)
+})
+
+// 吧单：集合内是相关贴吧（层级：集合 > 贴吧 > 帖子）
+// 每个贴吧卡片：最新帖子图片 + 吧头像 + 吧名（参考百度贴吧进吧）
+const barGroups = ref([
+  {
+    id: 1,
+    title: '热门推荐',
+    limit: 4,
+    expanded: false,
+    bars: [
+      { id: 1, icon: '💻', name: '前端吧', img: 'https://picsum.photos/seed/e1/400/500' },
+      { id: 2, icon: '🍜', name: '美食吧', img: 'https://picsum.photos/seed/e2/400/300' },
+      { id: 3, icon: '🎮', name: '游戏吧', img: 'https://picsum.photos/seed/e3/400/360' },
+      { id: 4, icon: '🎬', name: '电影吧', img: 'https://picsum.photos/seed/e4/400/520' },
+      { id: 5, icon: '📚', name: '读书吧', img: 'https://picsum.photos/seed/e5/400/320' },
+      { id: 6, icon: '🎵', name: '音乐吧', img: 'https://picsum.photos/seed/e6/400/440' },
+      { id: 7, icon: '⚽', name: '足球吧', img: 'https://picsum.photos/seed/e7/400/300' },
+      { id: 8, icon: '🚀', name: '科技吧', img: 'https://picsum.photos/seed/e8/400/500' }
+    ]
+  },
+  {
+    id: 2,
+    title: '兴趣圈',
+    limit: 4,
+    expanded: false,
+    bars: [
+      { id: 9, icon: '📷', name: '摄影吧', img: 'https://picsum.photos/seed/e9/400/340' },
+      { id: 10, icon: '🎸', name: '吉他吧', img: 'https://picsum.photos/seed/e10/400/480' },
+      { id: 11, icon: '🐱', name: '养猫吧', img: 'https://picsum.photos/seed/e11/400/300' },
+      { id: 12, icon: '🏃', name: '跑步吧', img: 'https://picsum.photos/seed/e12/400/540' },
+      { id: 13, icon: '🍰', name: '烘焙吧', img: 'https://picsum.photos/seed/e13/400/380' },
+      { id: 14, icon: '🔨', name: '手工吧', img: 'https://picsum.photos/seed/e14/400/420' },
+      { id: 15, icon: '🎣', name: '钓鱼吧', img: 'https://picsum.photos/seed/e15/400/460' },
+      { id: 16, icon: '✈️', name: '旅游吧', img: 'https://picsum.photos/seed/e16/400/350' }
+    ]
+  }
+])
+
+// 进入吧内页
+function goBar(b) {
+  uni.navigateTo({ url: '/pages/bar/bar?id=' + b.id + '&name=' + b.name })
+}
+
+// 瀑布流左右分列（奇偶分配，卡片上下拼合不留空）
+// 折叠时也渲染全部贴吧，由固定高度容器 + overflow:hidden 裁剪，被裁剪的贴吧自然露出“半截”
+function leftBars(g) {
+  return g.bars.filter((_, i) => i % 2 === 0)
+}
+function rightBars(g) {
+  return g.bars.filter((_, i) => i % 2 === 1)
+}
+
+function toggleGroup(g) {
+  g.expanded = !g.expanded
+}
+
+function onSearch() {
+  uni.navigateTo({ url: '/pages/search/search' })
+}
+
+function goLogin() {
+  uni.navigateTo({ url: '/pages/login/login' })
+}
+</script>
+
+<style scoped>
+.page { background: #f5f6f7; padding-bottom: 160rpx; }
+
+/* 顶部导航：搜索栏 */
+.head { position: sticky; top: 0; z-index: 100; background: #fff; padding: 0 20rpx 16rpx; border-bottom: 1rpx solid #f0f0f0; }
+.search-bar { display: flex; align-items: center; background: #f5f6f7; padding: 14rpx 24rpx; border-radius: 40rpx; margin-top: 12rpx; }
+.search-icon { font-size: 28rpx; margin-right: 12rpx; }
+.search-placeholder { font-size: 26rpx; color: #999; }
+
+/* 足迹栏（紧凑：缩小头像与间距，控制在半屏内） */
+.footprint-section { background: #fff; padding: 16rpx 0; margin-bottom: 16rpx; }
+.footprint-title { font-size: 28rpx; font-weight: bold; padding: 0 20rpx; margin-bottom: 12rpx; }
+.footprint-scroll { white-space: nowrap; }
+/* 隐藏横向滚动条 */
+.footprint-scroll ::v-deep ::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.footprint-item { display: inline-flex; flex-direction: column; align-items: center; width: 100rpx; margin: 0 10rpx; }
+.footprint-item:first-child { margin-left: 20rpx; }
+.fp-avatar { position: relative; width: 60rpx; height: 60rpx; border-radius: 50%; background: #f0f7fc; display: flex; align-items: center; justify-content: center; }
+.fp-icon { font-size: 32rpx; }
+.fp-badge { position: absolute; top: -4rpx; right: -6rpx; min-width: 24rpx; height: 24rpx; line-height: 24rpx; padding: 0 6rpx; background: #ff3b30; color: #fff; font-size: 18rpx; border-radius: 12rpx; text-align: center; box-sizing: border-box; }
+.fp-name { font-size: 20rpx; color: #666; margin-top: 6rpx; max-width: 100rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 关注的吧（紧凑：缩小图标与内边距，控制在半屏内） */
+.follow-section { padding: 0 20rpx; }
+.section-title { font-size: 30rpx; font-weight: bold; margin: 10rpx 6rpx 16rpx; }
+.follow-grid { display: flex; flex-wrap: wrap; gap: 12rpx; }
+.follow-item { flex: 0 0 calc(50% - 6rpx); box-sizing: border-box; background: #fff; border-radius: 16rpx; padding: 16rpx; display: flex; align-items: center; }
+.follow-icon { width: 56rpx; height: 56rpx; border-radius: 12rpx; background: #f0f7fc; text-align: center; line-height: 56rpx; font-size: 30rpx; flex-shrink: 0; }
+.follow-info { flex: 1; margin-left: 12rpx; display: flex; flex-direction: column; }
+.follow-name { font-size: 26rpx; font-weight: bold; color: #333; }
+.follow-desc { font-size: 20rpx; color: #999; margin-top: 4rpx; }
+
+/* 吧单：瀑布流两列卡片（图片 + 吧头像 + 吧名，上下拼合不留空） */
+.group { padding: 0 20rpx; margin-top: 20rpx; }
+.waterfall { display: flex; gap: 16rpx; align-items: flex-start; }
+.waterfall-col { flex: 1; display: flex; flex-direction: column; gap: 16rpx; }
+.bar-card { box-sizing: border-box; background: #fff; border-radius: 16rpx; overflow: hidden; }
+.bar-img { width: 100%; display: block; }
+.bar-card-footer { display: flex; align-items: center; padding: 16rpx; }
+.bar-card-icon { width: 64rpx; height: 64rpx; border-radius: 12rpx; background: #f0f7fc; text-align: center; line-height: 64rpx; font-size: 34rpx; flex-shrink: 0; }
+.bar-card-name { font-size: 26rpx; font-weight: bold; color: #333; margin-left: 12rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.waterfall-box { position: relative; }
+.waterfall-box.collapsed { height: 960rpx; overflow: hidden; }
+/* 折叠时：羽化遮罩（从透明渐变到页面背景色）+ 展开按钮压在卡片上 */
+.more-mask { position: absolute; left: 0; right: 0; bottom: 0; height: 160rpx; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 20rpx; background: linear-gradient(to bottom, rgba(245,246,247,0) 0%, rgba(245,246,247,0.85) 70%, rgba(245,246,247,1) 100%); }
+.more-btn { display: flex; align-items: center; justify-content: center; background: #fff; border: 1rpx solid #eee; border-radius: 40rpx; padding: 12rpx 40rpx; box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.08); }
+.more-text { font-size: 26rpx; color: #1296db; }
+.more-arrow { font-size: 20rpx; color: #1296db; margin-left: 8rpx; }
+/* 展开时：收起按钮（独立一行） */
+.more-collapse { margin-top: 16rpx; display: flex; align-items: center; justify-content: center; background: #fff; border-radius: 16rpx; padding: 20rpx 0; }
+
+/* 未登录提示 */
+.login-tip { padding: 30rpx 20rpx; text-align: center; color: #1296db; font-size: 26rpx; background: #f0f7fc; border-radius: 12rpx; }
+</style>
