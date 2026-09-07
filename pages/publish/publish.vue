@@ -219,7 +219,7 @@ function submit() {
   selectedBar.value = null
 
   setTimeout(() => {
-    uni.switchTab({ url: '/pages/home/home' })
+    uni.reLaunch({ url: '/pages/home/home' })
   }, 800)
 }
 </script>
