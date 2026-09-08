@@ -26,7 +26,10 @@
     <!-- 选择贴吧 -->
     <view class="card row" @tap="openBarPicker">
       <text class="row-label">选择贴吧</text>
-      <text v-if="selectedBar" class="row-value">{{ selectedBar.icon }} {{ selectedBar.name }}</text>
+      <view v-if="selectedBar" class="row-value-wrap">
+        <image class="pick-logo" :src="selectedBar.img" mode="aspectFill" />
+        <text class="row-value">{{ selectedBar.name }}</text>
+      </view>
       <text v-else class="row-placeholder">请选择要发布的贴吧</text>
       <text class="row-arrow">›</text>
     </view>
@@ -64,7 +67,7 @@
         </view>
         <scroll-view class="picker-list" scroll-y>
           <view v-for="b in filteredBars" :key="b.id" class="picker-item" @tap="chooseBar(b)">
-            <text class="picker-item-icon">{{ b.icon }}</text>
+            <image class="picker-item-icon" :src="b.img" mode="aspectFill" />
             <text class="picker-item-name">{{ b.name }}</text>
             <text v-if="selectedBar && selectedBar.id === b.id" class="picker-item-check">✓</text>
           </view>
@@ -77,7 +80,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { addPost, getCurrentUser, requireLogin } from '../../utils/store'
+import { addPost, getCurrentUser, requireLogin, getBars } from '../../utils/store'
 
 const title = ref('')
 const content = ref('')
@@ -94,25 +97,8 @@ const barSearchKeyword = ref('')
 const topics = ref([])
 const topicInput = ref('')
 
-// 可发布的贴吧列表
-const barList = ref([
-  { id: 1, icon: '💻', name: '前端吧' },
-  { id: 2, icon: '🍜', name: '美食吧' },
-  { id: 3, icon: '🎮', name: '游戏吧' },
-  { id: 4, icon: '🎬', name: '电影吧' },
-  { id: 5, icon: '📚', name: '读书吧' },
-  { id: 6, icon: '🎵', name: '音乐吧' },
-  { id: 7, icon: '⚽', name: '足球吧' },
-  { id: 8, icon: '🚀', name: '科技吧' },
-  { id: 9, icon: '📷', name: '摄影吧' },
-  { id: 10, icon: '🎸', name: '吉他吧' },
-  { id: 11, icon: '🐱', name: '养猫吧' },
-  { id: 12, icon: '🏃', name: '跑步吧' },
-  { id: 13, icon: '🍰', name: '烘焙吧' },
-  { id: 14, icon: '🔨', name: '手工吧' },
-  { id: 15, icon: '🎣', name: '钓鱼吧' },
-  { id: 16, icon: '✈️', name: '旅游吧' }
-])
+// 可发布的贴吧列表（来自 store，统一吧图 / 吧名）
+const barList = ref(getBars())
 
 const filteredBars = computed(() => {
   const kw = barSearchKeyword.value.trim()
@@ -334,13 +320,28 @@ function submit() {
 }
 .row-value {
   flex: 1;
-  margin-left: 20rpx;
   font-size: 28rpx;
   color: #1296db;
   text-align: right;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.row-value-wrap {
+  flex: 1;
+  margin-left: 20rpx;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+}
+.pick-logo {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 10rpx;
+  margin-right: 10rpx;
+  display: block;
+  flex-shrink: 0;
 }
 .row-placeholder {
   flex: 1;
@@ -511,8 +512,12 @@ function submit() {
   border-bottom: 1rpx solid #f5f5f5;
 }
 .picker-item-icon {
-  font-size: 40rpx;
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 12rpx;
   margin-right: 20rpx;
+  display: block;
+  flex-shrink: 0;
 }
 .picker-item-name {
   flex: 1;

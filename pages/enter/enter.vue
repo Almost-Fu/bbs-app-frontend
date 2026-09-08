@@ -14,7 +14,7 @@
       <scroll-view v-if="footprints.length" class="footprint-scroll" scroll-x :show-scrollbar="false">
         <view class="footprint-item" v-for="f in footprints" :key="f.id" @tap="goBar(f)">
           <view class="fp-avatar">
-            <text class="fp-icon">{{ f.icon }}</text>
+            <image class="fp-img" :src="barImgOf(f.id)" mode="aspectFill" />
             <view v-if="f.badge > 0" class="fp-badge">{{ f.badge }}</view>
           </view>
           <text class="fp-name">{{ f.name }}</text>
@@ -28,7 +28,7 @@
       <view class="section-title">关注的吧</view>
       <view v-if="followBars.length" class="follow-grid">
         <view class="follow-item" v-for="b in followBars" :key="b.id" @tap="goBar(b)">
-          <text class="follow-icon">{{ b.icon }}</text>
+          <image class="follow-icon" :src="barImgOf(b.id)" mode="aspectFill" />
           <view class="follow-info">
             <text class="follow-name">{{ b.name }}</text>
             <text class="follow-desc">{{ b.desc }}</text>
@@ -45,18 +45,18 @@
         <view class="waterfall">
           <view class="waterfall-col">
             <view class="bar-card" v-for="b in leftBars(g)" :key="b.id" @tap="goBar(b)">
-              <image class="bar-img" :src="b.img" mode="widthFix" />
+              <image class="bar-img" :src="barImgOf(b.id)" mode="widthFix" />
               <view class="bar-card-footer">
-                <view class="bar-card-icon">{{ b.icon }}</view>
+                <image class="bar-card-icon" :src="barImgOf(b.id)" mode="aspectFill" />
                 <text class="bar-card-name">{{ b.name }}</text>
               </view>
             </view>
           </view>
           <view class="waterfall-col">
             <view class="bar-card" v-for="b in rightBars(g)" :key="b.id" @tap="goBar(b)">
-              <image class="bar-img" :src="b.img" mode="widthFix" />
+              <image class="bar-img" :src="barImgOf(b.id)" mode="widthFix" />
               <view class="bar-card-footer">
-                <view class="bar-card-icon">{{ b.icon }}</view>
+                <image class="bar-card-icon" :src="barImgOf(b.id)" mode="aspectFill" />
                 <text class="bar-card-name">{{ b.name }}</text>
               </view>
             </view>
@@ -138,6 +138,12 @@ const barGroups = ref([
   }
 ])
 
+// 吧图：按吧 id 返回 static 本地吧图（static/images/bars/）
+function barImgOf(id) {
+  const b = getBars().find(x => x.id === id)
+  return b ? b.img : ''
+}
+
 // 进入吧内页
 function goBar(b) {
   uni.navigateTo({ url: '/pages/bar/bar?id=' + b.id + '&name=' + b.name })
@@ -183,7 +189,7 @@ function goLogin() {
 .footprint-item { display: inline-flex; flex-direction: column; align-items: center; width: 100rpx; margin: 0 10rpx; }
 .footprint-item:first-child { margin-left: 20rpx; }
 .fp-avatar { position: relative; width: 60rpx; height: 60rpx; border-radius: 50%; background: #f0f7fc; display: flex; align-items: center; justify-content: center; }
-.fp-icon { font-size: 32rpx; }
+.fp-img { width: 100%; height: 100%; border-radius: 50%; display: block; }
 .fp-badge { position: absolute; top: -4rpx; right: -6rpx; min-width: 24rpx; height: 24rpx; line-height: 24rpx; padding: 0 6rpx; background: #ff3b30; color: #fff; font-size: 18rpx; border-radius: 12rpx; text-align: center; box-sizing: border-box; }
 .fp-name { font-size: 20rpx; color: #666; margin-top: 6rpx; max-width: 100rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -192,7 +198,7 @@ function goLogin() {
 .section-title { font-size: 30rpx; font-weight: bold; margin: 10rpx 6rpx 16rpx; }
 .follow-grid { display: flex; flex-wrap: wrap; gap: 12rpx; }
 .follow-item { flex: 0 0 calc(50% - 6rpx); box-sizing: border-box; background: #fff; border-radius: 16rpx; padding: 16rpx; display: flex; align-items: center; }
-.follow-icon { width: 56rpx; height: 56rpx; border-radius: 12rpx; background: #f0f7fc; text-align: center; line-height: 56rpx; font-size: 30rpx; flex-shrink: 0; }
+.follow-icon { width: 56rpx; height: 56rpx; border-radius: 12rpx; display: block; flex-shrink: 0; }
 .follow-info { flex: 1; margin-left: 12rpx; display: flex; flex-direction: column; }
 .follow-name { font-size: 26rpx; font-weight: bold; color: #333; }
 .follow-desc { font-size: 20rpx; color: #999; margin-top: 4rpx; }
@@ -204,7 +210,7 @@ function goLogin() {
 .bar-card { box-sizing: border-box; background: #fff; border-radius: 16rpx; overflow: hidden; }
 .bar-img { width: 100%; display: block; }
 .bar-card-footer { display: flex; align-items: center; padding: 16rpx; }
-.bar-card-icon { width: 64rpx; height: 64rpx; border-radius: 12rpx; background: #f0f7fc; text-align: center; line-height: 64rpx; font-size: 34rpx; flex-shrink: 0; }
+.bar-card-icon { width: 64rpx; height: 64rpx; border-radius: 12rpx; display: block; flex-shrink: 0; }
 .bar-card-name { font-size: 26rpx; font-weight: bold; color: #333; margin-left: 12rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .waterfall-box { position: relative; }
 .waterfall-box.collapsed { height: 960rpx; overflow: hidden; }

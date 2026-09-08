@@ -4,7 +4,10 @@
 
     <view v-for="p in posts" :key="p.id" class="post-card" @tap="goDetail(p)">
       <view class="pc-head">
-        <text class="pc-bar">{{ p.barIcon }} {{ p.barName }}</text>
+        <view class="pc-bar-wrap">
+          <image v-if="p.barImg" class="pc-bar-logo" :src="p.barImg" mode="aspectFill" />
+          <text class="pc-bar">{{ p.barName }}</text>
+        </view>
         <text class="pc-time">{{ p.time }}</text>
       </view>
       <view class="pc-title">{{ p.title }}</view>
@@ -45,6 +48,8 @@ function removeFav(p) {
 .empty { text-align: center; color: #999; padding: 100rpx 0; }
 .post-card { background: #fff; border-radius: 16rpx; padding: 24rpx; margin-bottom: 20rpx; }
 .pc-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12rpx; }
+.pc-bar-wrap { display: flex; align-items: center; min-width: 0; }
+.pc-bar-logo { width: 30rpx; height: 30rpx; border-radius: 6rpx; margin-right: 8rpx; display: block; flex-shrink: 0; }
 .pc-bar { font-size: 24rpx; color: #576b95; }
 .pc-time { font-size: 22rpx; color: #bbb; }
 .pc-title { font-size: 30rpx; font-weight: bold; color: #222; line-height: 1.4; }

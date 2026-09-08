@@ -1,24 +1,24 @@
 // utils/store.js
 // 统一数据层：用本地存储（Storage）模拟后端，所有页面共享同一份数据，保证数据联动。
 
-// ---------- 初始贴吧列表 ----------
+// ---------- 初始贴吧列表（img：吧图 / 吧 logo，位于 static/images/bars/） ----------
 const BARS = [
-  { id: 1, icon: '💻', name: '前端吧' },
-  { id: 2, icon: '🍜', name: '美食吧' },
-  { id: 3, icon: '🎮', name: '游戏吧' },
-  { id: 4, icon: '🎬', name: '电影吧' },
-  { id: 5, icon: '📚', name: '读书吧' },
-  { id: 6, icon: '🎵', name: '音乐吧' },
-  { id: 7, icon: '⚽', name: '足球吧' },
-  { id: 8, icon: '🚀', name: '科技吧' },
-  { id: 9, icon: '📷', name: '摄影吧' },
-  { id: 10, icon: '🎸', name: '吉他吧' },
-  { id: 11, icon: '🐱', name: '养猫吧' },
-  { id: 12, icon: '🏃', name: '跑步吧' },
-  { id: 13, icon: '🍰', name: '烘焙吧' },
-  { id: 14, icon: '🔨', name: '手工吧' },
-  { id: 15, icon: '🎣', name: '钓鱼吧' },
-  { id: 16, icon: '✈️', name: '旅游吧' }
+  { id: 1, icon: '💻', name: '前端吧', img: '/static/images/bars/前端.jpg' },
+  { id: 2, icon: '🍜', name: '美食吧', img: '/static/images/bars/美食.jpg' },
+  { id: 3, icon: '🎮', name: '游戏吧', img: '/static/images/bars/游戏.jpg' },
+  { id: 4, icon: '🎬', name: '电影吧', img: '/static/images/bars/电影.jpg' },
+  { id: 5, icon: '📚', name: '读书吧', img: '/static/images/bars/读书.jpg' },
+  { id: 6, icon: '🎵', name: '音乐吧', img: '/static/images/bars/音乐.jpg' },
+  { id: 7, icon: '⚽', name: '足球吧', img: '/static/images/bars/足球.jpg' },
+  { id: 8, icon: '🚀', name: '科技吧', img: '/static/images/bars/科技.jpg' },
+  { id: 9, icon: '📷', name: '摄影吧', img: '/static/images/bars/摄影.jpg' },
+  { id: 10, icon: '🎸', name: '吉他吧', img: '/static/images/bars/吉他.jpg' },
+  { id: 11, icon: '🐱', name: '养猫吧', img: '/static/images/bars/养猫.jpg' },
+  { id: 12, icon: '🏃', name: '跑步吧', img: '/static/images/bars/跑步.jpg' },
+  { id: 13, icon: '🍰', name: '烘焙吧', img: '/static/images/bars/烘焙.jpg' },
+  { id: 14, icon: '🔨', name: '手工吧', img: '/static/images/bars/手工.jpg' },
+  { id: 15, icon: '🎣', name: '钓鱼吧', img: '/static/images/bars/钓鱼.jpg' },
+  { id: 16, icon: '✈️', name: '旅游吧', img: '/static/images/bars/旅游.jpg' }
 ]
 
 // ---------- 初始足迹（登录用户默认展示，游客为空） ----------
@@ -148,11 +148,16 @@ export function initStore() {
 }
 
 // ---------- 帖子 ----------
+// 给帖子补上对应吧的吧图（barImg），兼容本地旧数据里没有该字段的情况
+function withBarImg(p) {
+  const b = BARS.find(x => x.id === p.barId)
+  return b ? { ...p, barImg: b.img } : p
+}
 export function getPosts() {
   const posts = uni.getStorageSync(K.posts)
-  if (Array.isArray(posts) && posts.length > 0) return posts
+  if (Array.isArray(posts) && posts.length > 0) return posts.map(withBarImg)
   // 兜底：数据未初始化或为空时，返回默认帖子
-  return DEFAULT_POSTS
+  return DEFAULT_POSTS.map(withBarImg)
 }
 function savePosts(posts) {
   uni.setStorageSync(K.posts, posts)

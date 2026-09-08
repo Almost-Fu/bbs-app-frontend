@@ -19,7 +19,7 @@
     <view v-for="p in posts" :key="p.id" class="card" @tap="goDetail(p)">
       <!-- 吧名 -->
       <view class="card-head">
-        <text class="bar-icon">{{ p.barIcon }}</text>
+        <image v-if="p.barImg" class="bar-head-logo" :src="p.barImg" mode="aspectFill" />
         <text class="bar-name">{{ p.barName }}</text>
         <view class="follow-btn" :class="{ followed: p.followed }" @tap.stop="toggleFollow(p)">
           {{ p.followed ? '已关注' : '+ 关注' }}
@@ -84,7 +84,7 @@
           <scroll-view v-if="footprints.length" class="fp-scroll" scroll-x :show-scrollbar="false">
             <view class="fp-item" v-for="f in footprints" :key="f.id" @tap="goBar(f)">
               <view class="fp-avatar">
-                <text class="fp-icon">{{ f.icon }}</text>
+                <image class="fp-img" :src="barImgOf(f.id)" mode="aspectFill" />
                 <view v-if="f.badge > 0" class="fp-badge">{{ f.badge }}</view>
               </view>
               <text class="fp-name">{{ f.name }}</text>
@@ -97,7 +97,7 @@
           <view class="drawer-title">我的关注</view>
           <view v-if="followBars.length">
             <view class="follow-item" v-for="b in followBars" :key="b.id" @tap="goBar(b)">
-              <view class="follow-icon">{{ b.icon }}</view>
+              <image class="follow-icon" :src="barImgOf(b.id)" mode="aspectFill" />
               <view class="follow-info">
                 <text class="follow-name">{{ b.name }}</text>
                 <text class="follow-desc">{{ b.desc }}</text>
@@ -151,6 +151,12 @@ onPullDownRefresh(() => {
   load()
   setTimeout(() => uni.stopPullDownRefresh(), 500)
 })
+
+// 吧图：按吧 id 返回 static 本地吧图（static/images/bars/）
+function barImgOf(id) {
+  const b = getBars().find(x => x.id === id)
+  return b ? b.img : ''
+}
 
 function goDetail(p) {
   uni.navigateTo({ url: '/pages/detail/detail?id=' + p.id })
@@ -325,18 +331,21 @@ function onSearch() {
 .fp-scroll ::v-deep ::-webkit-scrollbar { display: none; }
 .fp-item { display: inline-flex; flex-direction: column; align-items: center; width: 100rpx; margin-right: 20rpx; }
 .fp-avatar { position: relative; width: 64rpx; height: 64rpx; border-radius: 50%; background: #f0f7fc; display: flex; align-items: center; justify-content: center; }
-.fp-icon { font-size: 34rpx; }
+.fp-img { width: 100%; height: 100%; border-radius: 50%; display: block; }
 .fp-badge { position: absolute; top: -4rpx; right: -6rpx; min-width: 24rpx; height: 24rpx; line-height: 24rpx; padding: 0 6rpx; background: #ff3b30; color: #fff; font-size: 18rpx; border-radius: 12rpx; text-align: center; box-sizing: border-box; }
 .fp-name { font-size: 20rpx; color: #666; margin-top: 6rpx; max-width: 100rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 /* 我的关注列表 */
 .follow-item { display: flex; align-items: center; padding: 16rpx 0; border-bottom: 1rpx solid #f7f7f7; }
 .follow-item:last-child { border-bottom: none; }
-.follow-icon { width: 56rpx; height: 56rpx; border-radius: 12rpx; background: #f0f7fc; text-align: center; line-height: 56rpx; font-size: 30rpx; flex-shrink: 0; }
+.follow-icon { width: 56rpx; height: 56rpx; border-radius: 12rpx; display: block; flex-shrink: 0; }
 .follow-info { flex: 1; margin-left: 16rpx; display: flex; flex-direction: column; }
 .follow-name { font-size: 26rpx; font-weight: bold; color: #333; }
 .follow-desc { font-size: 20rpx; color: #999; margin-top: 4rpx; }
 
 /* 未登录提示 */
 .login-tip { padding: 30rpx 20rpx; text-align: center; color: #1296db; font-size: 26rpx; background: #f0f7fc; border-radius: 12rpx; }
+
+/* 首页帖子卡片吧标小图 */
+.bar-head-logo { width: 36rpx; height: 36rpx; border-radius: 8rpx; display: block; flex-shrink: 0; }
 </style>

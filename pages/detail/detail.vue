@@ -3,7 +3,8 @@
     <!-- 帖子正文 -->
     <view class="post">
       <view class="bar-line">
-        <text class="bar-name">{{ post.barIcon }} {{ post.barName }}</text>
+        <image v-if="post.barImg" class="bar-logo" :src="post.barImg" mode="aspectFill" />
+        <text class="bar-name">{{ post.barName }}</text>
         <text v-if="post.tag" class="bar-tag">{{ post.tag }}</text>
       </view>
       <view class="title">{{ post.title }}</view>
@@ -161,6 +162,7 @@ function onLikeComment(c) {
 .c-btn { margin-left: 16rpx; background: #1296db; color: #fff; }
 
 .bar-line { display: flex; align-items: center; margin-bottom: 12rpx; }
+.bar-logo { width: 34rpx; height: 34rpx; border-radius: 8rpx; margin-right: 10rpx; display: block; flex-shrink: 0; }
 .bar-name { font-size: 24rpx; color: #576b95; font-weight: bold; }
 .bar-tag { font-size: 20rpx; color: #1296db; background: #eaf6ff; padding: 4rpx 16rpx; border-radius: 8rpx; margin-left: 12rpx; }
 .imgs { margin-top: 20rpx; }

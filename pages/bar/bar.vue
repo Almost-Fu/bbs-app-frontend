@@ -18,7 +18,9 @@
 
       <!-- 吧信息区 -->
       <view class="bar-header">
-        <view class="bar-avatar">{{ barInfo.icon }}</view>
+        <view class="bar-avatar">
+          <image class="bar-avatar-img" :src="barInfo.img" mode="aspectFill" />
+        </view>
         <view class="bar-main">
           <view class="bar-name-row">
             <text class="bar-name">{{ barInfo.name }}</text>
@@ -104,7 +106,7 @@ const statusBarHeight = uni.getSystemInfoSync().statusBarHeight || 0
 
 // 吧信息
 const barInfo = ref({
-  icon: '💻',
+  img: '',
   name: '前端吧',
   owner: '阿华',
   posts: '2.3万',
@@ -112,27 +114,15 @@ const barInfo = ref({
   followed: false
 })
 
-// 图标映射：根据传入的吧名匹配图标
-const iconMap = {
-  '前端吧': '💻', '美食吧': '🍜', '游戏吧': '🎮', '电影吧': '🎬',
-  '读书吧': '📚', '音乐吧': '🎵', '足球吧': '⚽', '科技吧': '🚀',
-  '摄影吧': '📷', '吉他吧': '🎸', '养猫吧': '🐱', '跑步吧': '🏃',
-  '烘焙吧': '🍰', '手工吧': '🔨', '钓鱼吧': '🎣', '旅游吧': '✈️'
-}
-
 // 接收上一页传入的吧 id 与吧名
 let barId = 1
 
 onLoad((options) => {
   if (options.id) barId = Number(options.id)
-  if (options.name) {
-    barInfo.value.name = options.name
-    barInfo.value.icon = iconMap[options.name] || '💬'
-  }
   const bar = getBar(barId)
   if (bar) {
-    barInfo.value.icon = bar.icon
     barInfo.value.name = bar.name
+    barInfo.value.img = bar.img
   }
   barInfo.value.followed = isFollowedBar(barId)
   posts.value = getPostsByBar(barId)
@@ -202,7 +192,8 @@ function goPublish() {
 .nav-search-text { font-size: 26rpx; color: #fff; opacity: 0.9; }
 
 .bar-header { display: flex; align-items: center; padding: 8rpx 24rpx 32rpx; }
-.bar-avatar { width: 110rpx; height: 110rpx; border-radius: 20rpx; background: #fff; font-size: 60rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.bar-avatar { width: 110rpx; height: 110rpx; border-radius: 20rpx; background: #fff; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
+.bar-avatar-img { width: 100%; height: 100%; border-radius: 20rpx; display: block; }
 .bar-main { flex: 1; margin-left: 24rpx; }
 .bar-name-row { display: flex; align-items: baseline; }
 .bar-name { font-size: 38rpx; font-weight: bold; color: #fff; }
