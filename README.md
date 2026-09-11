@@ -1,4 +1,4 @@
-# 🏠 贴吧社区（bbs-app）
+# 🏠 贴吧社区（bbs-app-frontend）
 
 一个基于 **uni-app + Vue3** 的贴吧/社区类前端练习项目，**页面与交互仿照百度贴吧 App**（帖子信息流、进吧/关注、吧内详情、发布帖子、评论点赞、游客鉴权等）。
 纯前端实现，用本地存储（Storage）模拟后端，无需启动服务器即可完整跑通所有功能。
@@ -16,7 +16,7 @@
 
 ## 🚀 运行方式
 
-1. 用 **HBuilderX** 打开项目根目录（`bbs-app`）
+1. 用 **HBuilderX** 打开项目根目录（`bbs-app-frontend`）
 2. 菜单栏「运行 → 运行到浏览器」即可预览 H5 版
 3. 也可「运行到小程序模拟器」验证多端兼容
 
@@ -25,7 +25,7 @@
 ## 📁 目录结构
 
 ```
-bbs-app/
+bbs-app-frontend/
 ├── App.vue                  # 应用入口（onLaunch 调用 initStore 初始化数据）
 ├── main.js                  # Vue3 入口（createSSRApp）
 ├── pages.json               # 页面注册 / 路由 / 全局样式
@@ -45,16 +45,14 @@ bbs-app/
 │   ├── favorites/           # 我的收藏
 │   ├── profile/             # 编辑资料（昵称 / emoji 头像）
 │   ├── settings/            # 设置（清搜索历史 / 重置本地数据）
-│   ├── login/ register/     # 登录 / 注册
-│   └── index/               # （旧入口，已废弃，未注册）
+│   └── login/ register/     # 登录 / 注册
 ├── components/
 │   ├── tab-bar/             # 底部导航（easycom 免注册，含未读角标）
 │   └── post-card/           # 帖子卡片（旧组件，当前未使用）
 ├── utils/
 │   └── store.js             # ★ 数据层：统一封装 Storage 读写
 └── static/
-    └── images/              # 本地图片素材（posts / bars / avatars）
-        └── 说明见「图片素材说明.md」
+    └── images/              # 本地图片素材（bars：吧图 / avatars：头像 / posts：帖子图）
 ```
 
 ## ✅ 已实现功能
@@ -119,6 +117,6 @@ bbs-app/
 
 ## ⚠️ 说明
 
-- 帖子配图、吧卡片图目前用网络占位图（picsum.photos），可按需替换成 `static/images` 本地图（见「图片素材说明.md」）。
+- 帖子配图仍用网络占位图（picsum.photos），需联网加载；吧图 / 吧 logo 用 `static/images/bars` 下的本地图。
 - `components/post-card/` 为早期遗留组件，暂未使用，可删除。
 - 本项目为前端练习，无真实后端；数据存于浏览器/小程序本地存储，清除缓存即恢复初始。

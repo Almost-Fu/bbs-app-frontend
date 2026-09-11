@@ -129,8 +129,10 @@ export function initStore() {
   if (!Array.isArray(posts) || posts.length === 0) {
     uni.setStorageSync(K.posts, DEFAULT_POSTS)
   }
+  // 评论的存储结构是 { [postId]: comment[] }：缺失，或类型异常（被写成数组 / 空字符串）时才重新写入种子数据
   const comments = uni.getStorageSync(K.comments)
-  if (!comments || comments === '' || Array.isArray(comments)) {
+  const commentsValid = !!comments && typeof comments === 'object' && !Array.isArray(comments)
+  if (!commentsValid) {
     uni.setStorageSync(K.comments, DEFAULT_COMMENTS)
   }
   if (!Array.isArray(uni.getStorageSync(K.favorites))) {
@@ -257,6 +259,13 @@ export function addComment(postId, comment) {
   if (!map[postId]) map[postId] = []
   map[postId].push(comment)
   uni.setStorageSync(K.comments, map)
+  // 同步帖子的评论数：commentCount 是评论总数的唯一来源，避免各页面显示不一致
+  const posts = getPosts()
+  const p = posts.find(x => x.id === postId)
+  if (p) {
+    p.commentCount += 1
+    savePosts(posts)
+  }
 }
 export function likeComment(postId, commentId) {
   const map = uni.getStorageSync(K.comments) || {}

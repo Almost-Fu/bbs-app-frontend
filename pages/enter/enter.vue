@@ -102,41 +102,23 @@ onShow(() => {
 })
 
 // 吧单：集合内是相关贴吧（层级：集合 > 贴吧 > 帖子）
-// 每个贴吧卡片：最新帖子图片 + 吧头像 + 吧名（参考百度贴吧进吧）
-const barGroups = ref([
-  {
-    id: 1,
-    title: '热门推荐',
-    limit: 4,
-    expanded: false,
-    bars: [
-      { id: 1, icon: '💻', name: '前端吧', img: 'https://picsum.photos/seed/e1/400/500' },
-      { id: 2, icon: '🍜', name: '美食吧', img: 'https://picsum.photos/seed/e2/400/300' },
-      { id: 3, icon: '🎮', name: '游戏吧', img: 'https://picsum.photos/seed/e3/400/360' },
-      { id: 4, icon: '🎬', name: '电影吧', img: 'https://picsum.photos/seed/e4/400/520' },
-      { id: 5, icon: '📚', name: '读书吧', img: 'https://picsum.photos/seed/e5/400/320' },
-      { id: 6, icon: '🎵', name: '音乐吧', img: 'https://picsum.photos/seed/e6/400/440' },
-      { id: 7, icon: '⚽', name: '足球吧', img: 'https://picsum.photos/seed/e7/400/300' },
-      { id: 8, icon: '🚀', name: '科技吧', img: 'https://picsum.photos/seed/e8/400/500' }
-    ]
-  },
-  {
-    id: 2,
-    title: '兴趣圈',
-    limit: 4,
-    expanded: false,
-    bars: [
-      { id: 9, icon: '📷', name: '摄影吧', img: 'https://picsum.photos/seed/e9/400/340' },
-      { id: 10, icon: '🎸', name: '吉他吧', img: 'https://picsum.photos/seed/e10/400/480' },
-      { id: 11, icon: '🐱', name: '养猫吧', img: 'https://picsum.photos/seed/e11/400/300' },
-      { id: 12, icon: '🏃', name: '跑步吧', img: 'https://picsum.photos/seed/e12/400/540' },
-      { id: 13, icon: '🍰', name: '烘焙吧', img: 'https://picsum.photos/seed/e13/400/380' },
-      { id: 14, icon: '🔨', name: '手工吧', img: 'https://picsum.photos/seed/e14/400/420' },
-      { id: 15, icon: '🎣', name: '钓鱼吧', img: 'https://picsum.photos/seed/e15/400/460' },
-      { id: 16, icon: '✈️', name: '旅游吧', img: 'https://picsum.photos/seed/e16/400/350' }
-    ]
-  }
-])
+// 每个贴吧卡片：最新的帖子图片 + 吧头像 + 吧名（参考百度贴吧进吧）
+// 集合只声明“包含哪些吧”，吧名 / 吧图 / 吧 icon 统一取自 store 的 getBars()，避免重复维护同一份数据
+const GROUP_DEFS = [
+  { id: 1, title: '热门推荐', limit: 4, barIds: [1, 2, 3, 4, 5, 6, 7, 8] },
+  { id: 2, title: '兴趣圈', limit: 4, barIds: [9, 10, 11, 12, 13, 14, 15, 16] }
+]
+
+const barGroups = ref(GROUP_DEFS.map(g => ({
+  id: g.id,
+  title: g.title,
+  limit: g.limit,
+  expanded: false,
+  bars: g.barIds
+    .map(id => getBars().find(b => b.id === id))
+    .filter(Boolean)
+    .map(b => ({ id: b.id, icon: b.icon, name: b.name }))
+})))
 
 // 吧图：按吧 id 返回 static 本地吧图（static/images/bars/）
 function barImgOf(id) {

@@ -6,23 +6,55 @@
     "versionCode" : "100",
     "transformPx" : false,
     /* 5+App特有相关 */
+    /* App 打包（HBuilderX 云打包 APK）相关配置 */
     "app-plus" : {
         "usingComponents" : true,
         "nvueStyleCompiler" : "uni-app",
         "compilerVersion" : 3,
+        /* 启动界面：云打包时若不单独配置启动图，用这个默认逻辑（自动关屏，不卡白屏） */
         "splashscreen" : {
             "alwaysShowBeforeRender" : true,
             "waiting" : true,
             "autoclose" : true,
             "delay" : 0
         },
-        "modules" : {},
+        /* 需要网络请求、选图上传等能力（App 端不涉及 CORS，直接请求 Render 地址） */
+        "modules" : {
+            "Camera" : {},
+            "Gallery" : {}
+        },
         "distribute" : {
             "android" : {
-                "permissions" : []
+                /* Android 权限：联网 + 选图/拍照（发布帖子选图用），云打包时自动写入 APK */
+                "permissions" : [
+                    "<uses-permission android:name=\"android.permission.INTERNET\"/>",
+                    "<uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\"/>",
+                    "<uses-permission android:name=\"android.permission.CAMERA\"/>",
+                    "<uses-permission android:name=\"android.permission.READ_MEDIA_IMAGES\"/>",
+                    "<uses-permission android:name=\"android.permission.READ_EXTERNAL_STORAGE\"/>",
+                    "<uses-permission android:name=\"android.permission.WRITE_EXTERNAL_STORAGE\"/>"
+                ],
+                /* 目标机型：Android 5.0(API21) 及以上，targetSdk 34 以符合应用商店要求 */
+                "minSdkVersion" : 21,
+                "targetSdkVersion" : 34
             },
             "ios" : {},
             "sdkConfigs" : {}
+        }
+    },
+    /* H5 网页版：部署到 Vercel（域名根目录），路由用 history 模式，base 为 / */
+    "h5" : {
+        "title" : "贴吧社区",
+        "router" : {
+            "mode" : "history",
+            "base" : "/"
+        },
+        "publicPath" : "/",
+        "async" : {
+            "loading" : "AsyncLoading",
+            "error" : "AsyncError",
+            "delay" : 200,
+            "timeout" : 60000
         }
     },
     /* 小程序特有相关 */

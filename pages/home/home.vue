@@ -119,8 +119,7 @@ import { getPosts, likePost, forwardPost, toggleFavorite, isFavorite, isFollowed
 // 状态栏高度（H5 为 0，App/小程序用于适配刘海屏）
 const statusBarHeight = uni.getSystemInfoSync().statusBarHeight || 0
 
-// 占位数据：后续接后端接口换成真实帖子
-// images 为网络占位图，可按需替换
+// 帖子列表：数据来自数据层（utils/store.js），onShow 时重新读取以保证点赞 / 收藏 / 关注状态联动
 const posts = ref([])
 
 // 侧边抽屉

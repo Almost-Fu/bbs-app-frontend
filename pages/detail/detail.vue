@@ -75,7 +75,8 @@ const comments = ref([])
 const newComment = ref('')
 const isFav = ref(false)
 
-const totalComments = computed(() => (post.value.commentCount || 0) + comments.value.length)
+// 评论总数以帖子自身的 commentCount 为准（addComment 已在数据层自增），不再叠加列表长度，避免重复计数
+const totalComments = computed(() => post.value.commentCount || 0)
 
 onLoad((options) => {
   const id = Number(options.id)
@@ -133,6 +134,8 @@ function sendComment() {
   }
   addComment(post.value.id, comment)
   comments.value = getComments(post.value.id)
+  // 重新读取帖子，同步数据层自增后的 commentCount
+  post.value = getPost(post.value.id)
   newComment.value = ''
 }
 
