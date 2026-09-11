@@ -113,7 +113,7 @@ function rebuildGroups() {
     title: g.title,
     limit: g.limit,
     expanded: false,
-    bars: allBars.value.slice(g.from, g.to).map(b => ({ id: b.id, icon: b.icon, name: b.name, img: b.img }))
+    bars: allBars.value.slice(g.from, g.to).map(b => ({ id: b.id, name: b.name, img: b.img }))
   }))
 }
 
@@ -141,7 +141,7 @@ async function load() {
   }
   try {
     const bars = await apiFollowedBars({ silent: true })
-    followBars.value = (bars || []).map(b => ({ id: b.id, icon: b.icon, name: b.name, img: b.img, desc: '已关注' }))
+    followBars.value = (bars || []).map(b => ({ id: b.id, name: b.name, img: b.img, desc: '已关注' }))
   } catch (e) {
     followBars.value = []
   }

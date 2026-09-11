@@ -192,7 +192,7 @@ async function load() {
   if (user.value) {
     try {
       const bars = await apiFollowedBars({ silent: true })
-      followBars.value = (bars || []).map(b => ({ id: b.id, icon: b.icon, name: b.name, desc: '已关注' }))
+      followBars.value = (bars || []).map(b => ({ id: b.id, name: b.name, desc: '已关注' }))
     } catch (e) {
       followBars.value = []
     }
