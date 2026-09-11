@@ -12,3 +12,5 @@ node_modules/
 Thumbs.db
 
 unpackage/dist/cache/ 
+# 命令行打包时 vite 的默认输出目录（正式产物在 unpackage/dist/build/web） 
+dist/
