@@ -208,6 +208,21 @@ export function apiCreatePost({ barId, title, content, tag, filePaths = [] }) {
   })
 }
 
+// --------------------- 头像（统一使用后端 /static/avatars 下的图片） ---------------------
+export const DEFAULT_AVATAR = '/static/avatars/default.png'
+export const AVATAR_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8]
+  .map((i) => `/static/avatars/avatar-${i}.png`)
+  .concat([DEFAULT_AVATAR])
+
+/**
+ * 头像地址：数据库里存的是 /static/avatars/xxx.png（相对后端），这里补成完整地址
+ * @param {object|string} userOrPath 用户对象（取 avatar）或直接的路径
+ */
+export function avatarUrl(userOrPath) {
+  const raw = typeof userOrPath === 'string' ? userOrPath : (userOrPath && userOrPath.avatar)
+  return resolveImageUrl(raw || DEFAULT_AVATAR)
+}
+
 // --------------------------- 数据归一化助手 ---------------------------
 // 吧图缓存：由 apiBars() / apiBarDetail() 填充，值来自数据库 bars.image
 const barImageCache = {}

@@ -11,7 +11,7 @@
     <view v-if="filtered.length === 0" class="empty">{{ getCurrentUser() ? '暂无消息' : '登录后查看互动消息' }}</view>
 
     <view v-for="m in filtered" :key="m.id" class="msg-item" @tap="goPost(m)">
-      <view class="m-avatar">{{ m.avatar }}</view>
+      <image class="m-avatar" :src="avatarUrl(m.avatar)" mode="aspectFill" />
       <view class="m-body">
         <view class="m-title">
           <text class="m-name">{{ m.name }}</text>
@@ -30,7 +30,7 @@
 import { ref, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 // 互动消息全部来自数据库：由 likes / comments 聚合而成（谁赞了我的帖、谁评论了我的帖、谁在评论里 @我）
-import { apiNotifications, apiReadNotifications } from '../../utils/api'
+import { apiNotifications, apiReadNotifications, avatarUrl } from '../../utils/api'
 import { getCurrentUser } from '../../utils/store'
 
 const activeTab = ref('like')
@@ -94,7 +94,7 @@ onShow(async () => {
 .tab.active { color: #1296db; font-weight: bold; }
 .tab.active::after { content: ''; position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); width: 48rpx; height: 6rpx; border-radius: 3rpx; background: #1296db; }
 .msg-item { background: #fff; margin: 16rpx 20rpx; border-radius: 16rpx; padding: 24rpx; display: flex; }
-.m-avatar { width: 80rpx; height: 80rpx; border-radius: 50%; background: #f0f7fc; text-align: center; line-height: 80rpx; font-size: 40rpx; flex-shrink: 0; }
+.m-avatar { width: 80rpx; height: 80rpx; border-radius: 50%; background: #f0f7fc; display: block; flex-shrink: 0; }
 .m-body { flex: 1; margin-left: 20rpx; }
 .m-title { font-size: 26rpx; color: #333; }
 .m-name { color: #1296db; font-weight: bold; margin-right: 10rpx; }

@@ -43,7 +43,7 @@
       <view class="post-card" v-for="p in posts" :key="p.id" @tap="goDetail(p)">
         <!-- 用户信息 -->
         <view class="post-user">
-          <view class="user-avatar">{{ p.authorAvatar }}</view>
+          <image class="user-avatar" :src="avatarUrl(p.authorAvatar)" mode="aspectFill" />
           <text class="user-name">{{ p.author }}</text>
           <text class="post-time">{{ p.time }}</text>
         </view>
@@ -102,7 +102,7 @@ import { onLoad, onReachBottom } from '@dcloudio/uni-app'
 // 吧页数据全部来自数据库：吧详情 + 吧内帖子 + 点赞 / 关注 / 转发 + 足迹
 import {
   apiBarPosts, apiVisitBar, apiFollowBar, apiUnfollowBar,
-  apiLikePost, apiUnlikePost, apiForwardPost, normalizePosts
+  apiLikePost, apiUnlikePost, apiForwardPost, normalizePosts, avatarUrl
 } from '../../utils/api'
 import { requireLogin } from '../../utils/store'
 
@@ -243,7 +243,7 @@ function goPublish() {
 .post-list { padding: 20rpx; }
 .post-card { background: #fff; border-radius: 20rpx; padding: 24rpx; margin-bottom: 20rpx; }
 .post-user { display: flex; align-items: center; }
-.user-avatar { width: 64rpx; height: 64rpx; border-radius: 50%; background: #f0f7fc; font-size: 36rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.user-avatar { width: 64rpx; height: 64rpx; border-radius: 50%; background: #f0f7fc; display: block; flex-shrink: 0; }
 .user-name { font-size: 26rpx; color: #333; margin-left: 16rpx; font-weight: bold; }
 .post-time { font-size: 22rpx; color: #bbb; margin-left: auto; }
 

@@ -9,7 +9,10 @@
       </view>
       <view class="title">{{ post.title }}</view>
       <view class="author-line">
-        <text class="author">{{ post.authorAvatar }} {{ post.author }}</text>
+        <view class="author-wrap">
+          <image class="author-avatar" :src="avatarUrl(post.authorAvatar)" mode="aspectFill" />
+          <text class="author">{{ post.author }}</text>
+        </view>
         <text class="time">{{ post.time }}</text>
       </view>
       <view class="content">{{ post.content }}</view>
@@ -40,7 +43,7 @@
     <view class="comment-title">评论（{{ totalComments }}）</view>
     <view v-for="c in comments" :key="c.id" class="comment">
       <view class="c-head">
-        <text class="c-avatar">{{ c.authorAvatar }}</text>
+        <image class="c-avatar" :src="avatarUrl(c.authorAvatar)" mode="aspectFill" />
         <view class="c-info">
           <text class="c-name">{{ c.author }}</text>
           <text class="c-time">{{ c.time }}</text>
@@ -69,7 +72,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import {
   apiPostDetail, apiComments, apiAddComment, apiLikeComment, apiUnlikeComment,
   apiLikePost, apiUnlikePost, apiFavoritePost, apiUnfavoritePost,
-  apiForwardPost, apiVisitBar, normalizePost
+  apiForwardPost, apiVisitBar, normalizePost, avatarUrl
 } from '../../utils/api'
 import { requireLogin } from '../../utils/store'
 
@@ -179,7 +182,10 @@ async function onLikeComment(c) {
 <style scoped>
 .page { padding: 20rpx; padding-bottom: 140rpx; }
 .post { background: #fff; border-radius: 16rpx; padding: 24rpx; }
-.author-line { display: flex; justify-content: space-between; font-size: 24rpx; color: #999; }
+.author-line { display: flex; justify-content: space-between; align-items: center; font-size: 24rpx; color: #999; }
+.author-wrap { display: flex; align-items: center; min-width: 0; }
+.author-avatar { width: 44rpx; height: 44rpx; border-radius: 50%; margin-right: 12rpx; display: block; flex-shrink: 0; }
+.c-avatar { width: 56rpx; height: 56rpx; border-radius: 50%; margin-right: 16rpx; display: block; flex-shrink: 0; }
 .title { font-size: 38rpx; font-weight: bold; margin: 16rpx 0; }
 .content { font-size: 28rpx; color: #444; }
 .comment-title { font-size: 30rpx; font-weight: bold; margin: 30rpx 6rpx 16rpx; }

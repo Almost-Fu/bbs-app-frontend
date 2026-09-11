@@ -1,7 +1,7 @@
 <template>
   <view class="page">
     <view class="user-card" @tap="onUserTap">
-      <view class="avatar">{{ user && user.avatar ? user.avatar : '🙂' }}</view>
+      <image class="avatar" :src="avatarSrc" mode="aspectFill" />
       <view class="user-info">
         <text class="nickname">{{ user ? user.nickname : '游客' }}</text>
         <text class="slogan">{{ user ? '欢迎回来，' + user.username : '登录 / 注册，体验完整功能' }}</text>
@@ -36,13 +36,16 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getCurrentUser, setCurrentUser, clearCurrentUser, requireLogin } from '../../utils/store'
 import { clearToken } from '../../utils/request'
-import { apiMe } from '../../utils/api'
+import { apiMe, avatarUrl } from '../../utils/api'
 
 const user = ref(null)
+
+/** 头像：数据库里存的是图片地址（/static/avatars/xxx.png），这里补成完整地址 */
+const avatarSrc = computed(() => avatarUrl(user.value))
 
 onShow(async () => {
   // 先用本机缓存的登录态渲染，再用数据库里的最新资料刷新（改过昵称 / 头像后立即生效）
@@ -98,7 +101,7 @@ function goSettings() {
 <style scoped>
 .page { padding: 20rpx; padding-bottom: 160rpx; }
 .user-card { background: #fff; border-radius: 16rpx; padding: 30rpx; display: flex; align-items: center; }
-.avatar { width: 110rpx; height: 110rpx; border-radius: 50%; background: #e6f4fb; text-align: center; line-height: 110rpx; font-size: 60rpx; }
+.avatar { width: 110rpx; height: 110rpx; border-radius: 50%; background: #e6f4fb; display: block; flex-shrink: 0; }
 .user-info { flex: 1; margin-left: 24rpx; display: flex; flex-direction: column; }
 .nickname { font-size: 34rpx; font-weight: bold; }
 .slogan { font-size: 24rpx; color: #999; }

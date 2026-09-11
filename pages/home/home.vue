@@ -70,7 +70,9 @@
     <view class="drawer-mask" :class="{ show: showDrawer }" @tap="closeDrawer" @touchmove.stop.prevent></view>
     <view class="drawer" :class="{ open: showDrawer }">
       <view class="drawer-user" :style="{ paddingTop: statusBarHeight + 24 + 'px' }" @tap="onDrawerUserTap">
-        <view class="drawer-avatar">{{ user ? '😊' : '🙂' }}</view>
+        <view class="drawer-avatar">
+          <image class="drawer-avatar-img" :src="drawerAvatar" mode="aspectFill" />
+        </view>
         <view class="drawer-user-info">
           <text class="drawer-name">{{ user ? user.nickname : '游客' }}</text>
           <text class="drawer-sub">{{ user ? '欢迎回来，' + user.username : '点击登录 / 注册' }}</text>
@@ -112,13 +114,13 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { onShow, onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 // 核心数据走线上后端：utils/api.js → utils/request.js → Render 接口 → Aiven 数据库
 import {
   apiPosts, apiBars, apiFollowedBars, apiFollowBar, apiUnfollowBar,
   apiLikePost, apiUnlikePost, apiFavoritePost, apiUnfavoritePost, apiForwardPost,
-  apiFootprints, barImgOf, normalizePosts
+  apiFootprints, barImgOf, avatarUrl, normalizePosts
 } from '../../utils/api'
 // 登录态与游客拦截仍用本机缓存（token / 当前用户）；其余数据全部来自数据库
 import { getCurrentUser, requireLogin } from '../../utils/store'
@@ -137,6 +139,9 @@ let followedBarIds = new Set()
 // 侧边抽屉
 const showDrawer = ref(false)
 const user = ref(null)
+
+/** 抽屉里的头像：数据库存的是图片地址（/static/avatars/xxx.png），未登录用默认图 */
+const drawerAvatar = computed(() => avatarUrl(user.value))
 
 // 足迹：最近浏览的吧（本地演示数据，游客为空）
 const footprints = ref([])
@@ -327,6 +332,7 @@ function onSearch() {
 .head { position: sticky; top: 0; z-index: 100; background: #fff; padding: 0 20rpx 12rpx; border-bottom: 1rpx solid #f0f0f0; }
 .head-row { display: flex; align-items: center; padding-top: 12rpx; }
 .hamburger { width: 60rpx; height: 60rpx; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; margin-right: 20rpx; }
+.drawer-avatar-img { width: 100%; height: 100%; border-radius: 50%; display: block; }
 .line { width: 40rpx; height: 4rpx; background: #333; border-radius: 2rpx; margin: 4rpx 0; }
 .search-bar { flex: 1; display: flex; align-items: center; background: #f5f6f7; padding: 14rpx 24rpx; border-radius: 40rpx; }
 .search-icon { font-size: 28rpx; margin-right: 12rpx; }

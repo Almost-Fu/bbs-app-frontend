@@ -57,7 +57,8 @@ async function onRegister() {
   loading.value = true
   try {
     // 后端注册：用户名重复会返回 400（提示由请求层统一处理），成功即返回 token
-    const data = await apiRegister({ username: name, password: pwd, nickname: nick, avatar: '🙂' })
+    // 头像不传：后端会用内置默认头像图（/static/avatars/default.png），数据库里不存 emoji
+    const data = await apiRegister({ username: name, password: pwd, nickname: nick })
     setToken(data.token)
     setCurrentUser(data.user)
     uni.showToast({ title: '注册成功', icon: 'success' })
