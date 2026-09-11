@@ -2,8 +2,8 @@
     "name" : "贴吧社区",
     "appid" : "__UNI__15E10AA",
     "description" : "uni-app 贴吧/社区练习项目（HBuilderX Vue3 标准结构）",
-    "versionName" : "1.0.0",
-    "versionCode" : "100",
+    "versionName" : "1.0.1",
+    "versionCode" : "101",
     "transformPx" : false,
     /* 5+App特有相关 */
     /* App 打包（HBuilderX 云打包 APK）相关配置 */
@@ -25,6 +25,8 @@
         },
         "distribute" : {
             "android" : {
+                /* Android 包名：云打包必填（装上手机后的唯一标识，上架后再改会变成另一个 App） */
+                "packagename" : "com.almostfu.bbsapp",
                 /* Android 权限：联网 + 选图/拍照（发布帖子选图用），云打包时自动写入 APK */
                 "permissions" : [
                     "<uses-permission android:name=\"android.permission.INTERNET\"/>",
