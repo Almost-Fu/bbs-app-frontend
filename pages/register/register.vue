@@ -23,7 +23,7 @@
         <input class="input" v-model="confirmPassword" password placeholder="请再次输入密码" maxlength="20" />
       </view>
 
-      <button class="btn" @tap="onRegister">注 册</button>
+      <button class="btn" :loading="loading" @tap="onRegister">注 册</button>
 
       <view class="to-login" @tap="goLogin">已有账号？去登录</view>
     </view>
@@ -32,14 +32,17 @@
 
 <script setup>
 import { ref } from 'vue'
-import { getUsers, setCurrentUser } from '../../utils/store'
+import { apiRegister } from '../../utils/api'
+import { setToken } from '../../utils/request'
+import { setCurrentUser } from '../../utils/store'
 
 const username = ref('')
 const nickname = ref('')
 const password = ref('')
 const confirmPassword = ref('')
+const loading = ref(false)
 
-function onRegister() {
+async function onRegister() {
   const name = username.value.trim()
   const nick = nickname.value.trim() || name
   const pwd = password.value
@@ -51,21 +54,21 @@ function onRegister() {
   if (pwd.length < 6) return uni.showToast({ title: '密码至少6位', icon: 'none' })
   if (pwd !== confirm) return uni.showToast({ title: '两次输入的密码不一致', icon: 'none' })
 
-  const users = getUsers()
-  if (users.some(u => u.username === name)) {
-    return uni.showToast({ title: '该用户名已被注册', icon: 'none' })
+  loading.value = true
+  try {
+    // 后端注册：用户名重复会返回 400（提示由请求层统一处理），成功即返回 token
+    const data = await apiRegister({ username: name, password: pwd, nickname: nick, avatar: '🙂' })
+    setToken(data.token)
+    setCurrentUser(data.user)
+    uni.showToast({ title: '注册成功', icon: 'success' })
+    setTimeout(() => {
+      uni.reLaunch({ url: '/pages/my/my' })
+    }, 800)
+  } catch (e) {
+    // 错误提示已在请求层处理
+  } finally {
+    loading.value = false
   }
-
-  users.push({ username: name, nickname: nick, password: pwd, avatar: '🙂', createdAt: Date.now() })
-  uni.setStorageSync('bbs_users', users)
-
-  // 注册成功后自动登录
-  setCurrentUser({ username: name, nickname: nick, avatar: '🙂' })
-
-  uni.showToast({ title: '注册成功', icon: 'success' })
-  setTimeout(() => {
-    uni.reLaunch({ url: '/pages/my/my' })
-  }, 800)
 }
 
 function goLogin() {

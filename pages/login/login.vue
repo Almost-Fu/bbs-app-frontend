@@ -13,7 +13,7 @@
         <input class="input" v-model="password" password placeholder="请输入密码" maxlength="20" />
       </view>
 
-      <button class="btn" @tap="onLogin">登 录</button>
+      <button class="btn" :loading="loading" @tap="onLogin">登 录</button>
 
       <view class="to-register" @tap="goRegister">没有账号？去注册</view>
     </view>
@@ -22,28 +22,36 @@
 
 <script setup>
 import { ref } from 'vue'
-import { getUsers, setCurrentUser } from '../../utils/store'
+import { apiLogin } from '../../utils/api'
+import { setToken } from '../../utils/request'
+import { setCurrentUser } from '../../utils/store'
 
 const username = ref('')
 const password = ref('')
+const loading = ref(false)
 
-function onLogin() {
+async function onLogin() {
   const name = username.value.trim()
   const pwd = password.value
 
   if (!name) return uni.showToast({ title: '请输入用户名', icon: 'none' })
   if (!pwd) return uni.showToast({ title: '请输入密码', icon: 'none' })
 
-  const users = getUsers()
-  const user = users.find(u => u.username === name)
-  if (!user) return uni.showToast({ title: '账号不存在，请先注册', icon: 'none' })
-  if (user.password !== pwd) return uni.showToast({ title: '密码错误', icon: 'none' })
-
-  setCurrentUser({ username: user.username, nickname: user.nickname, avatar: user.avatar || '🙂' })
-  uni.showToast({ title: '登录成功', icon: 'success' })
-  setTimeout(() => {
-    uni.navigateBack()
-  }, 800)
+  loading.value = true
+  try {
+    // 调线上后端登录（401 用户名或密码错误 / 403 账号被禁用 / 网络异常，均由 utils/request.js 统一提示）
+    const data = await apiLogin(name, pwd)
+    setToken(data.token) // 保存 token，后续请求自动带上 Authorization
+    setCurrentUser(data.user) // 同步登录态给其它页面（我的、侧边抽屉等沿用同一份）
+    uni.showToast({ title: '登录成功', icon: 'success' })
+    setTimeout(() => {
+      uni.navigateBack()
+    }, 800)
+  } catch (e) {
+    // 错误提示已在请求层处理，这里什么都不用做
+  } finally {
+    loading.value = false
+  }
 }
 
 function goRegister() {

@@ -65,86 +65,103 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+// 详情页数据全部走线上后端（utils/api.js → utils/request.js → Render 接口）
 import {
-  getPost, getComments, addComment, likeComment, likePost, forwardPost,
-  toggleFavorite, isFavorite, getCurrentUser, requireLogin
-} from '../../utils/store'
+  apiPostDetail, apiComments, apiAddComment, apiLikeComment, apiUnlikeComment,
+  apiLikePost, apiUnlikePost, apiFavoritePost, apiUnfavoritePost, normalizePost
+} from '../../utils/api'
+import { requireLogin } from '../../utils/store'
 
 const post = ref({})
 const comments = ref([])
 const newComment = ref('')
 const isFav = ref(false)
+let postId = 0
 
-// 评论总数以帖子自身的 commentCount 为准（addComment 已在数据层自增），不再叠加列表长度，避免重复计数
+// 评论总数以帖子自身的 commentCount 为准（后端发表评论时会自增，避免重复计数）
 const totalComments = computed(() => post.value.commentCount || 0)
 
-onLoad((options) => {
-  const id = Number(options.id)
-  const p = getPost(id)
-  if (p) {
-    post.value = p
-    isFav.value = isFavorite(id)
+/** 拉取帖子详情 + 评论列表 */
+async function load() {
+  try {
+    const p = await apiPostDetail(postId) // 注意：后端会顺手把浏览量 +1
+    post.value = normalizePost(p)
+    isFav.value = !!p.favorited
+
+    const data = await apiComments(postId)
+    comments.value = data.list || []
+  } catch (e) {
+    // 帖子不存在（404）等情况由请求层统一提示
   }
-  comments.value = getComments(id)
+}
+
+onLoad((options) => {
+  postId = Number(options.id)
+  load()
 })
 
-function like() {
+/** 帖子点赞 / 取消点赞 */
+async function like() {
   if (!requireLogin()) return
-  const updated = likePost(post.value.id)
-  if (updated) {
-    post.value.liked = updated.liked
-    post.value.likes = updated.likes
+  try {
+    const res = post.value.liked ? await apiUnlikePost(postId) : await apiLikePost(postId)
+    post.value.liked = res.liked
+    post.value.likes = res.likes
+  } catch (e) {
+    // 请求层已提示
   }
 }
 
+/** 转发：后端暂未提供转发接口，仅前端提示，不改服务端数据 */
 function forward() {
   if (!requireLogin()) return
-  const updated = forwardPost(post.value.id)
-  if (updated) post.value.forwards = updated.forwards
-  uni.showToast({ title: '转发成功', icon: 'none' })
+  uni.showToast({ title: '转发成功（演示）', icon: 'none' })
 }
 
-function onToggleFavorite() {
+/** 收藏 / 取消收藏 */
+async function onToggleFavorite() {
   if (!requireLogin()) return
-  const fav = toggleFavorite(post.value.id)
-  isFav.value = fav
-  uni.showToast({ title: fav ? '已收藏' : '已取消收藏', icon: 'none' })
+  try {
+    const res = isFav.value ? await apiUnfavoritePost(postId) : await apiFavoritePost(postId)
+    isFav.value = res.favorited
+    uni.showToast({ title: res.favorited ? '已收藏' : '已取消收藏', icon: 'none' })
+  } catch (e) {
+    // 请求层已提示
+  }
 }
 
 function previewImages(i) {
   uni.previewImage({ current: post.value.images[i], urls: post.value.images })
 }
 
-function sendComment() {
+/** 发表评论（后端会把该帖 commentCount +1，并返回新建的评论对象） */
+async function sendComment() {
   if (!requireLogin()) return
   const text = newComment.value.trim()
   if (!text) {
     uni.showToast({ title: '评论不能为空', icon: 'none' })
     return
   }
-  const user = getCurrentUser()
-  const comment = {
-    id: Date.now(),
-    author: user ? (user.nickname || user.username) : '游客',
-    authorAvatar: (user && user.avatar) || '🙂',
-    text,
-    time: '刚刚',
-    likes: 0,
-    liked: false
+  try {
+    const created = await apiAddComment(postId, text)
+    comments.value = comments.value.concat(created)
+    post.value.commentCount = (post.value.commentCount || 0) + 1
+    newComment.value = ''
+    uni.showToast({ title: '评论成功', icon: 'none' })
+  } catch (e) {
+    // 请求层已提示
   }
-  addComment(post.value.id, comment)
-  comments.value = getComments(post.value.id)
-  // 重新读取帖子，同步数据层自增后的 commentCount
-  post.value = getPost(post.value.id)
-  newComment.value = ''
 }
 
-function onLikeComment(c) {
+/** 评论点赞 / 取消点赞 */
+async function onLikeComment(c) {
   if (!requireLogin()) return
-  const updated = likeComment(post.value.id, c.id)
-  if (updated) {
-    c.liked = updated.liked
-    c.likes = updated.likes
+  try {
+    const res = c.liked ? await apiUnlikeComment(c.id) : await apiLikeComment(c.id)
+    c.liked = res.liked
+    c.likes = res.likes
+  } catch (e) {
+    // 请求层已提示
   }
 }
 </script>

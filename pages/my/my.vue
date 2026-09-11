@@ -39,6 +39,7 @@
 import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { getCurrentUser, clearCurrentUser, requireLogin } from '../../utils/store'
+import { clearToken } from '../../utils/request'
 
 const user = ref(null)
 
@@ -60,7 +61,8 @@ function logout() {
     content: '确定要退出登录吗？',
     success(res) {
       if (res.confirm) {
-        clearCurrentUser()
+        clearToken() // 清除后端登录 token
+        clearCurrentUser() // 清除本地登录态
         user.value = null
         uni.showToast({ title: '已退出登录', icon: 'none' })
       }

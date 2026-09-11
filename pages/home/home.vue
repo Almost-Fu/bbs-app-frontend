@@ -56,7 +56,7 @@
           <text class="action-num">{{ p.forwards }}</text>
         </view>
         <view class="action" @tap.stop="onToggleFavorite(p)">
-          <text class="action-icon">{{ isFav(p.id) ? '⭐' : '☆' }}</text>
+          <text class="action-icon">{{ isFav(p) ? '⭐' : '☆' }}</text>
           <text class="action-num">收藏</text>
         </view>
       </view>
@@ -113,42 +113,104 @@
 
 <script setup>
 import { ref } from 'vue'
-import { onShow, onPullDownRefresh } from '@dcloudio/uni-app'
-import { getPosts, likePost, forwardPost, toggleFavorite, isFavorite, isFollowedBar, toggleFollowBar, getFollowedBars, getBars, getFootprints, getCurrentUser, requireLogin } from '../../utils/store'
+import { onShow, onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
+// 核心数据走线上后端：utils/api.js → utils/request.js → Render 接口 → Aiven 数据库
+import {
+  apiPosts, apiBars, apiFollowedBars, apiFollowBar, apiUnfollowBar,
+  apiLikePost, apiUnlikePost, apiFavoritePost, apiUnfavoritePost, normalizePosts
+} from '../../utils/api'
+// 仍走本地数据层的部分：足迹（本地演示数据）、登录态、游客拦截、吧图
+import { getFootprints, getCurrentUser, requireLogin } from '../../utils/store'
 
 // 状态栏高度（H5 为 0，App/小程序用于适配刘海屏）
 const statusBarHeight = uni.getSystemInfoSync().statusBarHeight || 0
 
-// 帖子列表：数据来自数据层（utils/store.js），onShow 时重新读取以保证点赞 / 收藏 / 关注状态联动
+// 信息流（后端分页）
 const posts = ref([])
+const page = ref(1)
+const pageSize = 10
+const hasMore = ref(false)
+// 已关注的吧 id 集合（后端帖子数据不带吧关注状态，用 /bars 的结果拼上）
+let followedBarIds = new Set()
 
 // 侧边抽屉
 const showDrawer = ref(false)
 const user = ref(null)
 
-// 足迹：最近浏览的吧（游客为空，登录后展示）
+// 足迹：最近浏览的吧（本地演示数据，游客为空）
 const footprints = ref([])
 
-// 我的关注（从 store 读取，联动关注状态）
+// 我的关注（登录后从后端读取）
 const followBars = ref([])
 
-function load() {
-  posts.value = getPosts().map(p => ({ ...p, followed: isFollowedBar(p.barId) }))
+/**
+ * 拉取首页数据：
+ *   1) 信息流 GET /posts —— 返回 liked / favorited / images / commentCount 等，前端直接渲染
+ *   2) 贴吧列表 GET /bars —— 取其 followed 拼到每条帖子上，控制「+ 关注 / 已关注」
+ *   3) 已登录时 GET /users/me/followed-bars —— 供侧边抽屉展示「我的关注」
+ */
+async function load() {
   user.value = getCurrentUser()
   footprints.value = getFootprints()
-  followBars.value = getFollowedBars().map(id => {
-    const b = getBars().find(x => x.id === id)
-    return b ? { id: b.id, icon: b.icon, name: b.name, desc: '已关注' } : null
-  }).filter(Boolean)
+
+  // 1) 信息流
+  try {
+    const data = await apiPosts({ page: page.value, pageSize })
+    posts.value = normalizePosts(data.list).map(p => ({ ...p, followed: followedBarIds.has(p.barId) }))
+    hasMore.value = !!data.hasMore
+  } catch (e) {
+    posts.value = []
+    hasMore.value = false
+  }
+
+  // 2) 关注状态（游客也能取到列表，只是 followed 全为 false）
+  try {
+    const bars = await apiBars()
+    followedBarIds = new Set((bars || []).filter(b => b.followed).map(b => b.id))
+    posts.value = posts.value.map(p => ({ ...p, followed: followedBarIds.has(p.barId) }))
+  } catch (e) {
+    // 忽略：不影响信息流展示
+  }
+
+  // 3) 侧边抽屉：我关注的吧
+  if (user.value) {
+    try {
+      const bars = await apiFollowedBars()
+      followBars.value = (bars || []).map(b => ({ id: b.id, icon: b.icon, name: b.name, desc: '已关注' }))
+    } catch (e) {
+      followBars.value = []
+    }
+  } else {
+    followBars.value = []
+  }
 }
 
 load()
 
-onShow(load)
-
-onPullDownRefresh(() => {
+onShow(() => {
+  page.value = 1
   load()
-  setTimeout(() => uni.stopPullDownRefresh(), 500)
+})
+
+onPullDownRefresh(async () => {
+  page.value = 1
+  await load()
+  uni.stopPullDownRefresh()
+})
+
+/** 触底加载下一页（后端 hasMore 控制） */
+onReachBottom(async () => {
+  if (!hasMore.value) return
+  try {
+    const data = await apiPosts({ page: page.value + 1, pageSize })
+    page.value += 1
+    posts.value = posts.value.concat(
+      normalizePosts(data.list).map(p => ({ ...p, followed: followedBarIds.has(p.barId) }))
+    )
+    hasMore.value = !!data.hasMore
+  } catch (e) {
+    // 错误提示已由请求层处理
+  }
 })
 
 // 吧图：按吧 id 返回 static 本地吧图（static/images/bars/）
@@ -171,37 +233,53 @@ function goLogin() {
   uni.navigateTo({ url: '/pages/login/login' })
 }
 
-function toggleFollow(p) {
+/** 关注 / 取关贴吧（后端 POST|DELETE /bars/{id}/follow） */
+async function toggleFollow(p) {
   if (!requireLogin()) return
-  toggleFollowBar(p.barId)
-  p.followed = !p.followed
-  load()
-}
-
-function like(p) {
-  if (!requireLogin()) return
-  const updated = likePost(p.id)
-  if (updated) {
-    p.liked = updated.liked
-    p.likes = updated.likes
+  try {
+    const res = p.followed ? await apiUnfollowBar(p.barId) : await apiFollowBar(p.barId)
+    p.followed = !!res.followed
+    if (p.followed) followedBarIds.add(p.barId)
+    else followedBarIds.delete(p.barId)
+    uni.showToast({ title: p.followed ? '已关注' : '已取消关注', icon: 'none' })
+  } catch (e) {
+    // 错误提示已由请求层处理
   }
 }
 
-function onToggleFavorite(p) {
+/** 帖子点赞 / 取消（后端返回最新的 liked 与 likes） */
+async function like(p) {
   if (!requireLogin()) return
-  const fav = toggleFavorite(p.id)
-  uni.showToast({ title: fav ? '已收藏' : '已取消收藏', icon: 'none' })
+  try {
+    const res = p.liked ? await apiUnlikePost(p.id) : await apiLikePost(p.id)
+    p.liked = res.liked
+    p.likes = res.likes
+  } catch (e) {
+    // 错误提示已由请求层处理
+  }
 }
 
-function isFav(id) {
-  return isFavorite(id)
+/** 收藏 / 取消收藏（后端返回最新的 favorited） */
+async function onToggleFavorite(p) {
+  if (!requireLogin()) return
+  try {
+    const res = p.favorited ? await apiUnfavoritePost(p.id) : await apiFavoritePost(p.id)
+    p.favorited = res.favorited
+    uni.showToast({ title: res.favorited ? '已收藏' : '已取消收藏', icon: 'none' })
+  } catch (e) {
+    // 错误提示已由请求层处理
+  }
 }
 
+/** 模板用：该帖是否为已收藏态 */
+function isFav(p) {
+  return !!p.favorited
+}
+
+/** 转发：后端暂未提供转发接口，这里只做前端提示，不改动服务端数据 */
 function forward(p) {
   if (!requireLogin()) return
-  const updated = forwardPost(p.id)
-  if (updated) p.forwards = updated.forwards
-  uni.showToast({ title: '转发成功', icon: 'none' })
+  uni.showToast({ title: '转发成功（演示）', icon: 'none' })
 }
 
 function previewImages(p, i) {
