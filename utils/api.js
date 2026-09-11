@@ -208,6 +208,46 @@ export function apiCreatePost({ barId, title, content, tag, filePaths = [] }) {
   })
 }
 
+/** 健康检查：App 启动时预热后端（缓解云部署冷启动），失败静默忽略 */
+export function apiHealth() {
+  return http.get('/health', {}, { silent: true, timeout: 60000 })
+}
+
+/**
+ * 上传自定义头像（multipart，字段名 file）→ 返回更新后的用户信息
+ * 后端会直接把图片地址写进 users.avatar，前端拿到结果同步本机缓存即可
+ * @param {string} filePath uni.chooseImage 拿到的本地临时路径
+ */
+export function apiUploadAvatar(filePath) {
+  const token = getToken()
+  return new Promise((resolve, reject) => {
+    uni.uploadFile({
+      url: `${API_BASE_URL}/users/me/avatar`,
+      filePath,
+      name: 'file',
+      header: token ? { Authorization: `Bearer ${token}` } : {},
+      timeout: 90000,
+      success: (res) => {
+        let body = res.data
+        try {
+          body = typeof body === 'string' ? JSON.parse(body) : body
+        } catch (e) {
+          uni.showToast({ title: '返回数据解析失败', icon: 'none' })
+          return reject(new Error('parse error'))
+        }
+        if (body && body.code === 0) return resolve(body.data)
+        const msg = (body && body.message) || '头像上传失败'
+        uni.showToast({ title: msg, icon: 'none' })
+        reject(new Error(msg))
+      },
+      fail: (err) => {
+        uni.showToast({ title: '头像上传失败，请稍后重试', icon: 'none' })
+        reject(err)
+      }
+    })
+  })
+}
+
 // --------------------- 头像（统一使用后端 /static/avatars 下的图片） ---------------------
 export const DEFAULT_AVATAR = '/static/avatars/default.png'
 export const AVATAR_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8]

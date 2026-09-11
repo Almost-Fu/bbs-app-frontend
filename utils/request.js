@@ -36,6 +36,41 @@ function clearAuthCache() {
   uni.removeStorageSync(USER_CACHE_KEY)
 }
 
+// ---------------------------------------------------------------------------
+// 云部署冷启动提示（Render 免费实例 15 分钟无请求会自动休眠，唤醒需 30~60 秒）
+//   做法：请求发出后按耗时逐步升级提示文案；全部请求结束后统一关掉提示。
+//   文案（用户可读、不吓人、给出预期）：
+//     3 秒  → 正在连接服务器…
+//     10 秒 → 服务器正在唤醒（免费实例会自动休眠）
+//     25 秒 → 首次访问需 30~60 秒，请稍候…
+//   说明：silent 的请求（足迹、未读角标、启动预热等）不打扰用户，不会触发这些提示。
+// ---------------------------------------------------------------------------
+const SLOW_HINTS = [
+  { after: 3000, title: '正在连接服务器…' },
+  { after: 10000, title: '服务器正在唤醒（免费实例会自动休眠）' },
+  { after: 25000, title: '首次访问需 30~60 秒，请稍候…' }
+]
+let slowHintDepth = 0
+let slowHintTimers = []
+
+function startSlowHint() {
+  slowHintDepth += 1
+  if (slowHintDepth > 1) return // 已有请求在提示了，不重复
+  slowHintTimers = SLOW_HINTS.map((hint) =>
+    setTimeout(() => {
+      uni.showLoading({ title: hint.title, mask: false })
+    }, hint.after)
+  )
+}
+
+function stopSlowHint() {
+  slowHintDepth = Math.max(0, slowHintDepth - 1)
+  if (slowHintDepth > 0) return
+  slowHintTimers.forEach(clearTimeout)
+  slowHintTimers = []
+  uni.hideLoading()
+}
+
 export function getToken() {
   return uni.getStorageSync(TOKEN_KEY) || ''
 }
@@ -65,7 +100,8 @@ export function request(options = {}) {
     auth = false,
     loading = false,
     silent = false,
-    timeout = 15000
+    // 云部署（Render 免费实例）冷启动要 30~60 秒，超时必须给足，否则首次访问会直接失败
+    timeout = 90000
   } = options
 
   const token = getToken()
@@ -79,6 +115,7 @@ export function request(options = {}) {
   if (token) finalHeader.Authorization = `Bearer ${token}`
 
   if (loading) uni.showLoading({ title: '加载中', mask: true })
+  if (!silent) startSlowHint() // 请求慢时逐步提示"服务器正在唤醒"
 
   return new Promise((resolve, reject) => {
     uni.request({
@@ -107,12 +144,13 @@ export function request(options = {}) {
       },
       fail: (err) => {
         if (!silent) {
-          uni.showToast({ title: '网络异常，请确认后端已启动', icon: 'none' })
+          uni.showToast({ title: '连接服务器失败，请下拉刷新重试', icon: 'none', duration: 3000 })
         }
         reject(err)
       },
       complete: () => {
         if (loading) uni.hideLoading()
+        if (!silent) stopSlowHint()
       }
     })
   })
