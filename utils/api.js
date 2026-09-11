@@ -270,7 +270,7 @@ export function avatarUrl(userOrPath) {
 // 吧图缓存：由 apiBars() / apiBarDetail() 填充，值来自数据库 bars.image
 const barImageCache = {}
 
-/** 缓存一批吧图（后端 bars.image，形如 /static/images/bars/前端.jpg） */
+/** 缓存一批吧图（后端 bars.image，形如 /static/images/bars/bar-1.jpg） */
 export function cacheBars(bars = []) {
   ;(bars || []).forEach((b) => {
     if (b && b.id != null) barImageCache[b.id] = b.img || ''
