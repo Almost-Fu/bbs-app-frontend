@@ -14,3 +14,7 @@ Thumbs.db
 unpackage/dist/cache/ 
 # �����д��ʱ vite ��Ĭ�����Ŀ¼����ʽ������ unpackage/dist/build/web�� 
 /dist/
+
+# HBuilderX cloud-pack APK output (build artifact, do not commit)
+unpackage/release/
+unpackage/cache/
