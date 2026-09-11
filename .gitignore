@@ -12,5 +12,5 @@ node_modules/
 Thumbs.db
 
 unpackage/dist/cache/ 
-# ÃüÁîĞĞ´ò°üÊ± vite µÄÄ¬ÈÏÊä³öÄ¿Â¼£¨ÕıÊ½²úÎïÔÚ unpackage/dist/build/web£© 
-dist/
+# ï¿½ï¿½ï¿½ï¿½ï¿½Ğ´ï¿½ï¿½Ê± vite ï¿½ï¿½Ä¬ï¿½ï¿½ï¿½ï¿½ï¿½Ä¿Â¼ï¿½ï¿½ï¿½ï¿½Ê½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ unpackage/dist/build/webï¿½ï¿½ 
+/dist/
