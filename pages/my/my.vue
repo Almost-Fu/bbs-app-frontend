@@ -52,11 +52,12 @@ onShow(async () => {
   user.value = getCurrentUser()
   if (!user.value) return
   try {
-    const fresh = await apiMe()
+    // 静默：登录态失效时由请求层统一清缓存并只提示一次，这里只回落到游客态
+    const fresh = await apiMe({ silent: true })
     setCurrentUser(fresh)
     user.value = fresh
   } catch (e) {
-    // token 失效 / 网络异常：保持缓存显示，请求层已提示
+    user.value = getCurrentUser() // 失效时已被请求层清掉 → 页面显示游客态
   }
 })
 

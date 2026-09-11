@@ -135,12 +135,12 @@ async function load() {
 
   // 3) 我的足迹（footprints 表）/ 我关注的吧（follows 表）
   try {
-    footprints.value = await apiFootprints(10)
+    footprints.value = await apiFootprints(10, { silent: true })
   } catch (e) {
     footprints.value = []
   }
   try {
-    const bars = await apiFollowedBars()
+    const bars = await apiFollowedBars({ silent: true })
     followBars.value = (bars || []).map(b => ({ id: b.id, icon: b.icon, name: b.name, img: b.img, desc: '已关注' }))
   } catch (e) {
     followBars.value = []

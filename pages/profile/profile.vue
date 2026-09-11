@@ -1,6 +1,12 @@
 <template>
   <view class="page">
-    <view class="card">
+    <!-- 未登录：页面内提示 + 按钮（不弹 toast、不自动跳转，避免"一进来就提醒请先登录"） -->
+    <view v-if="!isLogin" class="card">
+      <view class="guest-tip">登录后可以修改昵称和头像</view>
+      <button class="btn" @tap="goLogin">去登录</button>
+    </view>
+
+    <view v-else class="card">
       <view class="field">
         <text class="label">头像</text>
         <image class="avatar-preview" :src="avatarSrc" mode="aspectFill" />
@@ -33,28 +39,32 @@ import { onShow } from '@dcloudio/uni-app'
 // 资料来自数据库：读取 GET /api/auth/me，保存 PATCH /api/users/me
 // 头像统一用后端 /static/avatars 下的图片（数据库里存的也是这些图片地址，不再有 emoji）
 import { apiMe, apiUpdateMe, avatarUrl, resolveImageUrl, AVATAR_OPTIONS, DEFAULT_AVATAR } from '../../utils/api'
-import { getCurrentUser, setCurrentUser, requireLogin } from '../../utils/store'
+import { getCurrentUser, setCurrentUser } from '../../utils/store'
 
 const avatar = ref(DEFAULT_AVATAR)
 const nickname = ref('')
 // 可选头像：后端内置的 8 张 + 默认图
 const avatarOptions = AVATAR_OPTIONS
 const saving = ref(false)
+// 是否已登录：未登录时页面显示「登录后可以修改昵称和头像」，而不是弹提示
+const isLogin = ref(false)
 
 /** 预览用：把相对地址补成完整地址 */
 const avatarSrc = computed(() => avatarUrl(avatar.value))
 const imgUrl = (path) => resolveImageUrl(path)
 
 onShow(async () => {
-  if (!requireLogin()) return
-  // 先用本机缓存渲染，秒开；再用后端返回的最新资料覆盖
+  // 未登录：只把页面切成"登录后可编辑"的形态，不弹提示、不自动跳登录页
   const cached = getCurrentUser()
-  if (cached) {
-    nickname.value = cached.nickname || ''
-    avatar.value = cached.avatar || DEFAULT_AVATAR
-  }
+  isLogin.value = !!cached
+  if (!cached) return
+
+  // 先用本机缓存渲染，秒开；再用后端返回的最新资料覆盖
+  nickname.value = cached.nickname || ''
+  avatar.value = cached.avatar || DEFAULT_AVATAR
   try {
-    const user = await apiMe()
+    // 静默：登录态失效时由请求层统一清缓存 + 只提示一次
+    const user = await apiMe({ silent: true })
     nickname.value = user.nickname || ''
     avatar.value = user.avatar || DEFAULT_AVATAR
     setCurrentUser(user) // 同步本机缓存
@@ -62,6 +72,10 @@ onShow(async () => {
     // 拉取失败就用缓存兜底
   }
 })
+
+function goLogin() {
+  uni.navigateTo({ url: '/pages/login/login' })
+}
 
 async function save() {
   const nick = nickname.value.trim()
@@ -87,6 +101,7 @@ async function save() {
 .page { background: #f5f6f7; min-height: 100vh; padding: 20rpx; }
 .card { background: #fff; border-radius: 16rpx; padding: 30rpx; }
 .field { margin-bottom: 24rpx; }
+.guest-tip { font-size: 28rpx; color: #666; margin-bottom: 24rpx; }
 .label { font-size: 26rpx; color: #666; margin-bottom: 12rpx; display: block; }
 .avatar-preview { width: 120rpx; height: 120rpx; border-radius: 50%; background: #f0f7fc; display: block; }
 .avatar-list { display: flex; flex-wrap: wrap; gap: 16rpx; margin-bottom: 30rpx; }

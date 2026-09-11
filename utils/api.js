@@ -21,9 +21,9 @@ export function apiRegister({ username, password, nickname, avatar }) {
   return http.post('/auth/register', { username, password, nickname, avatar })
 }
 
-/** 当前登录用户（用于校验 token 是否有效） */
-export function apiMe() {
-  return http.get('/auth/me')
+/** 当前登录用户（用于校验 token 是否有效）；options 可传 { silent: true } 静默失败 */
+export function apiMe(options) {
+  return http.get('/auth/me', {}, options)
 }
 
 // ------------------------------- 贴吧 -------------------------------
@@ -54,8 +54,8 @@ export function apiVisitBar(barId) {
 }
 
 /** 我关注的吧（需登录） */
-export function apiFollowedBars() {
-  return http.get('/users/me/followed-bars')
+export function apiFollowedBars(options) {
+  return http.get('/users/me/followed-bars', {}, options)
 }
 
 /** 关注贴吧 → { followed: true, followCount } */
@@ -117,18 +117,18 @@ export function apiForwardPost(postId) {
 
 // --------------------------- 我的（后端「我」系列） ---------------------------
 /** 我的帖子（分页） */
-export function apiMyPosts(params = {}) {
-  return http.get('/users/me/posts', { page: 1, pageSize: 10, ...params })
+export function apiMyPosts(params = {}, options) {
+  return http.get('/users/me/posts', { page: 1, pageSize: 10, ...params }, options)
 }
 
 /** 我的收藏（分页） */
-export function apiMyFavorites(params = {}) {
-  return http.get('/users/me/favorites', { page: 1, pageSize: 10, ...params })
+export function apiMyFavorites(params = {}, options) {
+  return http.get('/users/me/favorites', { page: 1, pageSize: 10, ...params }, options)
 }
 
 /** 我的足迹（进过的吧，含"上次浏览后新增帖数"角标） */
-export function apiFootprints(limit = 12) {
-  return http.get('/users/me/footprints', { limit })
+export function apiFootprints(limit = 12, options) {
+  return http.get('/users/me/footprints', { limit }, options)
 }
 
 /** 修改我的资料（昵称 / 头像）→ 返回最新的用户信息 */
@@ -144,8 +144,8 @@ export function apiSearch(keyword, params = {}) {
 
 // --------------------------- 互动消息 ---------------------------
 /** 互动消息：type = all / like / reply / mention */
-export function apiNotifications(type = 'all', params = {}) {
-  return http.get('/users/me/notifications', { type, page: 1, pageSize: 20, ...params })
+export function apiNotifications(type = 'all', params = {}, options) {
+  return http.get('/users/me/notifications', { type, page: 1, pageSize: 20, ...params }, options)
 }
 
 /** 未读互动消息数（tab-bar 角标） */
@@ -154,8 +154,8 @@ export function apiUnreadCount() {
 }
 
 /** 标记互动消息已读（角标清零） */
-export function apiReadNotifications() {
-  return http.post('/users/me/notifications/read')
+export function apiReadNotifications(options) {
+  return http.post('/users/me/notifications/read', {}, options)
 }
 
 // --------------------------- 发布（multipart 上传） ---------------------------

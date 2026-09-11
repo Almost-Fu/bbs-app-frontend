@@ -41,7 +41,7 @@ async function load(reset = true) {
     return
   }
   try {
-    const data = await apiMyPosts({ page: reset ? 1 : page.value, pageSize: 10 })
+    const data = await apiMyPosts({ page: reset ? 1 : page.value, pageSize: 10 }, { silent: true })
     const list = normalizePosts(data.list)
     posts.value = reset ? list : posts.value.concat(list)
     page.value = data.page

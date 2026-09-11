@@ -161,7 +161,7 @@ async function load() {
   // 0) 足迹：数据库里的"我浏览过的吧"（登录后才有）
   if (user.value) {
     try {
-      footprints.value = await apiFootprints(10)
+      footprints.value = await apiFootprints(10, { silent: true })
     } catch (e) {
       footprints.value = []
     }
@@ -191,7 +191,7 @@ async function load() {
   // 3) 侧边抽屉：我关注的吧
   if (user.value) {
     try {
-      const bars = await apiFollowedBars()
+      const bars = await apiFollowedBars({ silent: true })
       followBars.value = (bars || []).map(b => ({ id: b.id, icon: b.icon, name: b.name, desc: '已关注' }))
     } catch (e) {
       followBars.value = []

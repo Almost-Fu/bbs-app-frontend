@@ -11,6 +11,30 @@
 import { API_BASE_URL } from './config'
 
 const TOKEN_KEY = 'bbs_token'
+const USER_CACHE_KEY = 'bbs_current_user' // utils/store.js 里的当前用户缓存（登录态失效时一并清掉）
+
+// ---------------------------------------------------------------------------
+// 「请先登录 / 登录已过期」提示节流
+//   背景：多个页面 onShow 会同时请求"需要登录"的接口，token 失效时每个请求都返回
+//         401，如果逐个弹提示就会"一直提醒请先登录"。这里做到：
+//         1) 8 秒内最多提示一次；
+//         2) 收到 401 立刻清掉本机登录态（避免每个页面继续拿失效 token 反复 401）。
+// ---------------------------------------------------------------------------
+const AUTH_TOAST_INTERVAL = 8000
+let lastAuthToastAt = 0
+
+function toastAuthOnce(title) {
+  const now = Date.now()
+  if (now - lastAuthToastAt < AUTH_TOAST_INTERVAL) return
+  lastAuthToastAt = now
+  uni.showToast({ title, icon: 'none' })
+}
+
+/** 登录态失效：清掉 token 与本机用户缓存，页面随即回到"游客"状态 */
+function clearAuthCache() {
+  clearToken()
+  uni.removeStorageSync(USER_CACHE_KEY)
+}
 
 export function getToken() {
   return uni.getStorageSync(TOKEN_KEY) || ''
@@ -46,7 +70,7 @@ export function request(options = {}) {
 
   const token = getToken()
   if (auth && !token) {
-    uni.showToast({ title: '请先登录', icon: 'none' })
+    toastAuthOnce('请先登录')
     setTimeout(() => uni.navigateTo({ url: '/pages/login/login' }), 500)
     return Promise.reject(new Error('未登录'))
   }
@@ -68,6 +92,12 @@ export function request(options = {}) {
         // 后端统一响应体
         if (body && typeof body === 'object' && 'code' in body) {
           if (body.code === 0) return resolve(body.data)
+          // 401：未登录或登录已过期 —— 清掉本机登录态 + 只提示一次，避免每个页面连环弹「请先登录」
+          if (body.code === 401) {
+            clearAuthCache()
+            toastAuthOnce(token ? '登录已过期，请重新登录' : '请先登录')
+            return reject(Object.assign(new Error(body.message || '请先登录'), { code: 401 }))
+          }
           if (!silent) uni.showToast({ title: body.message || '请求失败', icon: 'none' })
           return reject(Object.assign(new Error(body.message || '请求失败'), { code: body.code }))
         }

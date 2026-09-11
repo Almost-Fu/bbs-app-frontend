@@ -53,7 +53,7 @@ async function load() {
     return
   }
   try {
-    const data = await apiNotifications(TYPE_OF_TAB[activeTab.value])
+    const data = await apiNotifications(TYPE_OF_TAB[activeTab.value], {}, { silent: true })
     messages.value = data.list || []
   } catch (e) {
     messages.value = []
@@ -78,7 +78,7 @@ onShow(async () => {
   // 进入消息页即视为已读：推进服务器端的已读位置，并通知 tab-bar 清角标
   if (getCurrentUser()) {
     try {
-      await apiReadNotifications()
+      await apiReadNotifications({ silent: true })
     } catch (e) {
       // 忽略：角标不是关键路径
     }
