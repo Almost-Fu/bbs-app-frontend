@@ -86,13 +86,14 @@
           <scroll-view v-if="footprints.length" class="fp-scroll" scroll-x :show-scrollbar="false">
             <view class="fp-item" v-for="f in footprints" :key="f.id" @tap="goBar(f)">
               <view class="fp-avatar">
-                <image class="fp-img" :src="barImgOf(f.id)" mode="aspectFill" />
+                <image class="fp-img" :src="f.img || barImgOf(f.barId)" mode="aspectFill" />
                 <view v-if="f.badge > 0" class="fp-badge">{{ f.badge }}</view>
               </view>
               <text class="fp-name">{{ f.name }}</text>
             </view>
           </scroll-view>
-          <view v-else class="login-tip" @tap="goLogin">登录后查看足迹</view>
+          <view v-else-if="!user" class="login-tip" @tap="goLogin">登录后查看足迹</view>
+          <view v-else class="empty-tip" @tap="goEnter">还没有足迹，去逛逛贴吧就会留下记录</view>
         </view>
 
         <view class="drawer-section">
@@ -106,7 +107,8 @@
               </view>
             </view>
           </view>
-          <view v-else class="login-tip" @tap="goLogin">登录后查看关注的吧</view>
+          <view v-else-if="!user" class="login-tip" @tap="goLogin">登录后查看关注的吧</view>
+          <view v-else class="empty-tip" @tap="goEnter">还没有关注的吧，去「进吧」关注几个吧</view>
         </view>
       </scroll-view>
     </view>
@@ -235,14 +237,22 @@ function goDetail(p) {
   uni.navigateTo({ url: '/pages/detail/detail?id=' + p.id })
 }
 
+// 进吧（足迹项带的是 barId，贴吧项带的是 id，这里统一取）
 function goBar(b) {
+  const barId = b.barId || b.id
   closeDrawer()
-  uni.navigateTo({ url: '/pages/bar/bar?id=' + b.id + '&name=' + b.name })
+  uni.navigateTo({ url: '/pages/bar/bar?id=' + barId + '&name=' + b.name })
 }
 
 function goLogin() {
   closeDrawer()
   uni.navigateTo({ url: '/pages/login/login' })
+}
+
+/** 已登录但还没有足迹 / 关注：引导去进吧页（足迹与关注都在那里展示/操作） */
+function goEnter() {
+  closeDrawer()
+  uni.navigateTo({ url: '/pages/enter/enter' })
 }
 
 /** 关注 / 取关贴吧（后端 POST|DELETE /bars/{id}/follow） */
@@ -441,6 +451,9 @@ function onSearch() {
 
 /* 未登录提示 */
 .login-tip { padding: 30rpx 20rpx; text-align: center; color: #1296db; font-size: 26rpx; background: #f0f7fc; border-radius: 12rpx; }
+
+/* 已登录但还没有数据（不是权限问题，只是空）：灰色、点击去进吧页 */
+.empty-tip { padding: 30rpx 20rpx; text-align: center; color: #999; font-size: 26rpx; background: #f5f6f7; border-radius: 12rpx; }
 
 /* 首页帖子卡片吧标小图 */
 .bar-head-logo { width: 36rpx; height: 36rpx; border-radius: 8rpx; display: block; flex-shrink: 0; }

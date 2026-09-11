@@ -1,6 +1,6 @@
 <template>
   <view class="page">
-    <view v-if="posts.length === 0" class="empty">还没有收藏任何帖子</view>
+    <view v-if="posts.length === 0" class="empty">{{ getCurrentUser() ? '还没有收藏任何帖子' : '登录后查看我的收藏' }}</view>
 
     <view v-for="p in posts" :key="p.id" class="post-card" @tap="goDetail(p)">
       <view class="pc-head">

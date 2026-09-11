@@ -14,13 +14,14 @@
       <scroll-view v-if="footprints.length" class="footprint-scroll" scroll-x :show-scrollbar="false">
         <view class="footprint-item" v-for="f in footprints" :key="f.id" @tap="goBar(f)">
           <view class="fp-avatar">
-            <image class="fp-img" :src="barImgOf(f.id)" mode="aspectFill" />
+            <image class="fp-img" :src="f.img || barImgOf(f.barId)" mode="aspectFill" />
             <view v-if="f.badge > 0" class="fp-badge">{{ f.badge }}</view>
           </view>
           <text class="fp-name">{{ f.name }}</text>
         </view>
       </scroll-view>
-      <view v-else class="login-tip" @tap="goLogin">登录后查看足迹</view>
+      <view v-else-if="!isLogin" class="login-tip" @tap="goLogin">登录后查看足迹</view>
+      <view v-else class="empty-tip">还没有足迹，去逛逛下面的贴吧就会留下记录</view>
     </view>
 
     <!-- 关注的吧：两列网格 -->
@@ -35,7 +36,8 @@
           </view>
         </view>
       </view>
-      <view v-else class="login-tip" @tap="goLogin">登录后查看关注的吧</view>
+      <view v-else-if="!isLogin" class="login-tip" @tap="goLogin">登录后查看关注的吧</view>
+      <view v-else class="empty-tip">还没有关注的吧，点进下面的吧单就能关注</view>
     </view>
 
     <!-- 吧单：集合分为两列，卡片为“最新帖子图片 + 吧头像 + 吧名”（瀑布流拼合，上下不留空） -->
@@ -95,6 +97,8 @@ const statusBarHeight = uni.getSystemInfoSync().statusBarHeight || 0
 const footprints = ref([])
 const followBars = ref([])
 const allBars = ref([])
+// 是否已登录：用来区分「游客」与「已登录但还没有足迹 / 关注」（两种都是空数组，但提示文案不同）
+const isLogin = ref(false)
 
 // 吧单：集合只声明"包含哪些吧"（按数据库返回的顺序切分），吧名 / 吧图统一取接口结果
 const GROUP_DEFS = [
@@ -126,8 +130,10 @@ async function load() {
   }
   rebuildGroups()
 
-  // 2) 游客到此为止：足迹与关注的吧需要登录
-  if (!getCurrentUser()) {
+  // 2) 登录态：游客只看吧单（足迹与关注的吧需要登录）
+  const me = getCurrentUser()
+  isLogin.value = !!me
+  if (!me) {
     footprints.value = []
     followBars.value = []
     return
@@ -155,9 +161,10 @@ function barImgOf(id) {
   return b ? b.img : ''
 }
 
-// 进入吧内页
+// 进入吧内页（足迹项带的是 barId，贴吧项带的是 id，这里统一取）
 function goBar(b) {
-  uni.navigateTo({ url: '/pages/bar/bar?id=' + b.id + '&name=' + b.name })
+  const barId = b.barId || b.id
+  uni.navigateTo({ url: '/pages/bar/bar?id=' + barId + '&name=' + b.name })
 }
 
 // 瀑布流左右分列（奇偶分配，卡片上下拼合不留空）
@@ -235,4 +242,7 @@ function goLogin() {
 
 /* 未登录提示 */
 .login-tip { padding: 30rpx 20rpx; text-align: center; color: #1296db; font-size: 26rpx; background: #f0f7fc; border-radius: 12rpx; }
+
+/* 已登录但还没有数据（不是权限问题，只是空）：灰色、不可点 */
+.empty-tip { padding: 30rpx 20rpx; text-align: center; color: #999; font-size: 26rpx; background: #f5f6f7; border-radius: 12rpx; }
 </style>
