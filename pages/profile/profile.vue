@@ -22,30 +22,50 @@
 <script setup>
 import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getCurrentUser, updateUser } from '../../utils/store'
+// 资料来自数据库：读取 GET /api/auth/me，保存 PATCH /api/users/me
+import { apiMe, apiUpdateMe } from '../../utils/api'
+import { getCurrentUser, setCurrentUser, requireLogin } from '../../utils/store'
 
 const avatar = ref('🙂')
 const nickname = ref('')
 const avatarOptions = ['🙂', '😊', '😎', '🤓', '🧑‍💻', '👩', '👦', '🐱', '🐶', '🦊', '🐼', '🐸', '🚀', '⚽', '🍜', '💻']
-let username = ''
+const saving = ref(false)
 
-onShow(() => {
-  const user = getCurrentUser()
-  if (user) {
-    username = user.username
+onShow(async () => {
+  if (!requireLogin()) return
+  // 先用本机缓存渲染，秒开；再用后端返回的最新资料覆盖
+  const cached = getCurrentUser()
+  if (cached) {
+    nickname.value = cached.nickname || ''
+    avatar.value = cached.avatar || '🙂'
+  }
+  try {
+    const user = await apiMe()
     nickname.value = user.nickname || ''
     avatar.value = user.avatar || '🙂'
+    setCurrentUser(user) // 同步本机缓存
+  } catch (e) {
+    // 拉取失败就用缓存兜底
   }
 })
 
-function save() {
-  if (!nickname.value.trim()) {
+async function save() {
+  const nick = nickname.value.trim()
+  if (!nick) {
     uni.showToast({ title: '昵称不能为空', icon: 'none' })
     return
   }
-  updateUser(username, { nickname: nickname.value.trim(), avatar: avatar.value })
-  uni.showToast({ title: '保存成功', icon: 'success' })
-  setTimeout(() => uni.navigateBack(), 800)
+  saving.value = true
+  try {
+    const user = await apiUpdateMe({ nickname: nick, avatar: avatar.value })
+    setCurrentUser(user) // 数据库已更新，同步本机缓存
+    uni.showToast({ title: '保存成功', icon: 'success' })
+    setTimeout(() => uni.navigateBack(), 800)
+  } catch (e) {
+    // 错误提示已由请求层处理
+  } finally {
+    saving.value = false
+  }
 }
 </script>
 

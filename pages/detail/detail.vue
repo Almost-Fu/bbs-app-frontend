@@ -68,7 +68,8 @@ import { onLoad } from '@dcloudio/uni-app'
 // 详情页数据全部走线上后端（utils/api.js → utils/request.js → Render 接口）
 import {
   apiPostDetail, apiComments, apiAddComment, apiLikeComment, apiUnlikeComment,
-  apiLikePost, apiUnlikePost, apiFavoritePost, apiUnfavoritePost, normalizePost
+  apiLikePost, apiUnlikePost, apiFavoritePost, apiUnfavoritePost,
+  apiForwardPost, apiVisitBar, normalizePost
 } from '../../utils/api'
 import { requireLogin } from '../../utils/store'
 
@@ -87,6 +88,9 @@ async function load() {
     const p = await apiPostDetail(postId) // 注意：后端会顺手把浏览量 +1
     post.value = normalizePost(p)
     isFav.value = !!p.favorited
+
+    // 看帖子也算逛过这个吧：顺手把足迹写进数据库（失败静默，不影响阅读）
+    if (p.barId) apiVisitBar(p.barId).catch(() => {})
 
     const data = await apiComments(postId)
     comments.value = data.list || []
@@ -112,10 +116,16 @@ async function like() {
   }
 }
 
-/** 转发：后端暂未提供转发接口，仅前端提示，不改服务端数据 */
-function forward() {
+/** 转发：走后端 POST /posts/{id}/forward，转发数由数据库维护 */
+async function forward() {
   if (!requireLogin()) return
-  uni.showToast({ title: '转发成功（演示）', icon: 'none' })
+  try {
+    const res = await apiForwardPost(postId)
+    post.value.forwards = res.forwards
+    uni.showToast({ title: '转发成功', icon: 'none' })
+  } catch (e) {
+    // 错误提示已由请求层处理
+  }
 }
 
 /** 收藏 / 取消收藏 */

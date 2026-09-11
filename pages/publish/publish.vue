@@ -80,7 +80,9 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { addPost, getCurrentUser, requireLogin, getBars } from '../../utils/store'
+// 发布走后端：吧列表来自数据库，图片走 multipart 上传（uni.uploadFile）
+import { apiBars, apiCreatePost } from '../../utils/api'
+import { requireLogin } from '../../utils/store'
 
 const title = ref('')
 const content = ref('')
@@ -97,8 +99,18 @@ const barSearchKeyword = ref('')
 const topics = ref([])
 const topicInput = ref('')
 
-// 可发布的贴吧列表（来自 store，统一吧图 / 吧名）
-const barList = ref(getBars())
+// 可发布的贴吧列表（来自数据库）
+const barList = ref([])
+const submitting = ref(false)
+
+async function loadBars() {
+  try {
+    barList.value = (await apiBars()) || []
+  } catch (e) {
+    barList.value = []
+  }
+}
+loadBars()
 
 const filteredBars = computed(() => {
   const kw = barSearchKeyword.value.trim()
@@ -161,7 +173,7 @@ function removeTopic(t) {
   topics.value = topics.value.filter((x) => x !== t)
 }
 
-function submit() {
+async function submit() {
   if (!requireLogin()) return
   if (!title.value.trim()) {
     uni.showToast({ title: '标题不能为空', icon: 'none' })
@@ -175,38 +187,39 @@ function submit() {
     uni.showToast({ title: '请选择要发布的贴吧', icon: 'none' })
     return
   }
+  if (submitting.value) return
 
-  const user = getCurrentUser()
-  addPost({
-    id: Date.now(),
-    barId: selectedBar.value.id,
-    barIcon: selectedBar.value.icon,
-    barName: selectedBar.value.name,
-    tag: topics.value.length ? topics.value[0] : '未分类',
-    author: user ? (user.nickname || user.username) : '游客',
-    authorAvatar: (user && user.avatar) || '🙂',
-    title: title.value.trim(),
-    content: content.value.trim(),
-    images: images.value,
-    time: '刚刚',
-    likes: 0,
-    commentCount: 0,
-    forwards: 0,
-    liked: false
-  })
+  submitting.value = true
+  uni.showLoading({ title: '发布中', mask: true })
+  try {
+    // 直接写数据库：文字 + 图片（multipart）一次性提交，返回新建的帖子
+    await apiCreatePost({
+      barId: selectedBar.value.id,
+      title: title.value.trim(),
+      content: content.value.trim(),
+      tag: topics.value.length ? topics.value[0] : '未分类',
+      filePaths: images.value
+    })
 
-  uni.showToast({ title: '发布成功', icon: 'success' })
+    uni.hideLoading()
+    uni.showToast({ title: '发布成功', icon: 'success' })
 
-  title.value = ''
-  content.value = ''
-  images.value = []
-  topics.value = []
-  topicInput.value = ''
-  selectedBar.value = null
+    title.value = ''
+    content.value = ''
+    images.value = []
+    topics.value = []
+    topicInput.value = ''
+    selectedBar.value = null
 
-  setTimeout(() => {
-    uni.reLaunch({ url: '/pages/home/home' })
-  }, 800)
+    setTimeout(() => {
+      uni.reLaunch({ url: '/pages/home/home' })
+    }, 800)
+  } catch (e) {
+    uni.hideLoading()
+    // 具体错误（标题过长 / 图片格式 / 未登录等）已由请求层提示
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 

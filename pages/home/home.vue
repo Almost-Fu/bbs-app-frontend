@@ -117,10 +117,11 @@ import { onShow, onPullDownRefresh, onReachBottom } from '@dcloudio/uni-app'
 // 核心数据走线上后端：utils/api.js → utils/request.js → Render 接口 → Aiven 数据库
 import {
   apiPosts, apiBars, apiFollowedBars, apiFollowBar, apiUnfollowBar,
-  apiLikePost, apiUnlikePost, apiFavoritePost, apiUnfavoritePost, normalizePosts
+  apiLikePost, apiUnlikePost, apiFavoritePost, apiUnfavoritePost, apiForwardPost,
+  apiFootprints, barImgOf, normalizePosts
 } from '../../utils/api'
-// 仍走本地数据层的部分：足迹（本地演示数据）、登录态、游客拦截、吧图
-import { getFootprints, getCurrentUser, requireLogin } from '../../utils/store'
+// 登录态与游客拦截仍用本机缓存（token / 当前用户）；其余数据全部来自数据库
+import { getCurrentUser, requireLogin } from '../../utils/store'
 
 // 状态栏高度（H5 为 0，App/小程序用于适配刘海屏）
 const statusBarHeight = uni.getSystemInfoSync().statusBarHeight || 0
@@ -151,7 +152,17 @@ const followBars = ref([])
  */
 async function load() {
   user.value = getCurrentUser()
-  footprints.value = getFootprints()
+
+  // 0) 足迹：数据库里的"我浏览过的吧"（登录后才有）
+  if (user.value) {
+    try {
+      footprints.value = await apiFootprints(10)
+    } catch (e) {
+      footprints.value = []
+    }
+  } else {
+    footprints.value = []
+  }
 
   // 1) 信息流
   try {
@@ -213,11 +224,7 @@ onReachBottom(async () => {
   }
 })
 
-// 吧图：按吧 id 返回 static 本地吧图（static/images/bars/）
-function barImgOf(id) {
-  const b = getBars().find(x => x.id === id)
-  return b ? b.img : ''
-}
+// 吧图：直接用 utils/api.js 里缓存的那份（缓存自数据库 bars.image，进入页面时 apiBars() 已填好）
 
 function goDetail(p) {
   uni.navigateTo({ url: '/pages/detail/detail?id=' + p.id })
@@ -276,10 +283,16 @@ function isFav(p) {
   return !!p.favorited
 }
 
-/** 转发：后端暂未提供转发接口，这里只做前端提示，不改动服务端数据 */
-function forward(p) {
+/** 转发：走后端 POST /posts/{id}/forward，转发数由数据库维护 */
+async function forward(p) {
   if (!requireLogin()) return
-  uni.showToast({ title: '转发成功（演示）', icon: 'none' })
+  try {
+    const res = await apiForwardPost(p.id)
+    p.forwards = res.forwards
+    uni.showToast({ title: '转发成功', icon: 'none' })
+  } catch (e) {
+    // 错误提示已由请求层处理
+  }
 }
 
 function previewImages(p, i) {

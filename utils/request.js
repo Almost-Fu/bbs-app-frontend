@@ -1,12 +1,12 @@
 // ---------------------------------------------------------------------------
 // 网络请求统一封装（uni.request，等价于 Web 端的 axios 封装）
 //
-//   现状说明：App / H5 的页面数据目前仍来自本地 Storage（utils/store.js），
-//   本文件是「对接线上后端」的基础设施 —— 需要联调时，把页面里的
-//     getPosts() / likePost() 之类调用换成 http.get('/posts') 等即可，
-//   接口清单见 bbs-app-backend/README.md，地址在 utils/config.js 里单点配置。
+//   数据来源：App 端所有会变化的数据都来自数据库（经 Render 上的 FastAPI 接口），
+//   请求都通过 utils/api.js 发起（本文件只负责：拼地址、带 token、统一响应体、错误提示）。
+//   本机只保存两样东西：登录 token（bbs_token）与当前用户缓存 + 搜索历史（utils/store.js）。
 //
 //   统一约定（与后端一致）：响应体 {code, message, data}，code=0 为成功
+//   接口清单见 bbs-app-backend/README.md，地址在 utils/config.js 里单点配置。
 // ---------------------------------------------------------------------------
 import { API_BASE_URL } from './config'
 
@@ -93,6 +93,7 @@ export const http = {
   get: (url, params, options) => request({ url, method: 'GET', data: params, ...options }),
   post: (url, data, options) => request({ url, method: 'POST', data, ...options }),
   put: (url, data, options) => request({ url, method: 'PUT', data, ...options }),
+  patch: (url, data, options) => request({ url, method: 'PATCH', data, ...options }),
   del: (url, data, options) => request({ url, method: 'DELETE', data, ...options })
 }
 

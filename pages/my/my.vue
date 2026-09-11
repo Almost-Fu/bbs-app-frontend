@@ -38,13 +38,23 @@
 <script setup>
 import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getCurrentUser, clearCurrentUser, requireLogin } from '../../utils/store'
+import { getCurrentUser, setCurrentUser, clearCurrentUser, requireLogin } from '../../utils/store'
 import { clearToken } from '../../utils/request'
+import { apiMe } from '../../utils/api'
 
 const user = ref(null)
 
-onShow(() => {
+onShow(async () => {
+  // 先用本机缓存的登录态渲染，再用数据库里的最新资料刷新（改过昵称 / 头像后立即生效）
   user.value = getCurrentUser()
+  if (!user.value) return
+  try {
+    const fresh = await apiMe()
+    setCurrentUser(fresh)
+    user.value = fresh
+  } catch (e) {
+    // token 失效 / 网络异常：保持缓存显示，请求层已提示
+  }
 })
 
 function onUserTap() {

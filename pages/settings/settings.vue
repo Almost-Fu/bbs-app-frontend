@@ -6,7 +6,7 @@
         <text class="arrow">›</text>
       </view>
       <view class="row" @tap="resetData">
-        <text>重置本地数据</text>
+        <text>清除本机缓存（含登录状态）</text>
         <text class="arrow">›</text>
       </view>
       <view class="row" @tap="about">
@@ -19,7 +19,8 @@
 </template>
 
 <script setup>
-import { initStore, clearSearchHistory } from '../../utils/store'
+import { clearSearchHistory, clearCurrentUser } from '../../utils/store'
+import { clearToken } from '../../utils/request'
 
 function clearHistory() {
   clearSearchHistory()
@@ -29,12 +30,13 @@ function clearHistory() {
 function resetData() {
   uni.showModal({
     title: '提示',
-    content: '将清空所有本地数据（帖子、收藏、关注、登录状态等），确定吗？',
+    content: '将清除本机的登录状态与搜索历史。帖子、收藏、关注等数据都保存在服务器上，不受影响。确定吗？',
     success(res) {
       if (res.confirm) {
         uni.clearStorageSync()
-        initStore()
-        uni.showToast({ title: '已重置', icon: 'none' })
+        clearToken()
+        clearCurrentUser()
+        uni.showToast({ title: '已清除本机缓存', icon: 'none' })
       }
     }
   })
@@ -43,7 +45,7 @@ function resetData() {
 function about() {
   uni.showModal({
     title: '关于',
-    content: '这是一个 uni-app + Vue3 的贴吧社区练习项目，数据存储在本地，用于演示前端功能。',
+    content: '这是一个 uni-app + Vue3 的贴吧社区项目：数据全部由后端接口提供（FastAPI + MySQL），App 端只负责展示与交互。',
     showCancel: false
   })
 }

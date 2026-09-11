@@ -24,15 +24,33 @@
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { getUnreadCount, requireLogin } from '../../utils/store'
+// 未读互动消息数来自数据库：GET /api/users/me/notifications/unread
+import { apiUnreadCount } from '../../utils/api'
+import { getCurrentUser, requireLogin } from '../../utils/store'
 
 const props = defineProps({
   current: { type: String, default: 'home' }
 })
 
-const unread = ref(getUnreadCount())
+const unread = ref(0)
+
+/** 未读角标：登录后向后端要真实未读数 */
+async function refreshUnread() {
+  if (!getCurrentUser()) {
+    unread.value = 0
+    return
+  }
+  try {
+    const data = await apiUnreadCount()
+    unread.value = data.unreadCount || 0
+  } catch (e) {
+    // 未登录 / 网络异常时不显示角标
+  }
+}
 
 onMounted(() => {
+  refreshUnread()
+  // 消息页标记已读后会发这个事件，角标立即清零，无需再请求
   uni.$on('unreadChange', (n) => { unread.value = n })
 })
 onBeforeUnmount(() => {

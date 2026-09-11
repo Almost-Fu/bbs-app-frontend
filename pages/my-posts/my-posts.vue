@@ -25,18 +25,37 @@
 
 <script setup>
 import { ref } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
-import { getPosts, getCurrentUser } from '../../utils/store'
+import { onShow, onReachBottom } from '@dcloudio/uni-app'
+// 我的帖子来自数据库：GET /api/users/me/posts
+import { apiMyPosts, normalizePosts } from '../../utils/api'
+import { getCurrentUser } from '../../utils/store'
 
 const posts = ref([])
+const page = ref(1)
+const hasMore = ref(false)
 
-onShow(() => {
-  const user = getCurrentUser()
-  if (!user) {
+/** reset=true 重新从第一页拉；否则加载下一页 */
+async function load(reset = true) {
+  if (!getCurrentUser()) {
     posts.value = []
     return
   }
-  posts.value = getPosts().filter(p => p.author === (user.nickname || user.username))
+  try {
+    const data = await apiMyPosts({ page: reset ? 1 : page.value, pageSize: 10 })
+    const list = normalizePosts(data.list)
+    posts.value = reset ? list : posts.value.concat(list)
+    page.value = data.page
+    hasMore.value = !!data.hasMore
+  } catch (e) {
+    if (reset) posts.value = []
+  }
+}
+
+onShow(() => load(true))
+onReachBottom(() => {
+  if (!hasMore.value) return
+  page.value += 1
+  load(false)
 })
 
 function goDetail(p) {

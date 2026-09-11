@@ -98,38 +98,58 @@
 
 <script setup>
 import { ref } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
-import { getPostsByBar, likePost, forwardPost, toggleFollowBar, isFollowedBar, getBar, requireLogin } from '../../utils/store'
+import { onLoad, onReachBottom } from '@dcloudio/uni-app'
+// 吧页数据全部来自数据库：吧详情 + 吧内帖子 + 点赞 / 关注 / 转发 + 足迹
+import {
+  apiBarPosts, apiVisitBar, apiFollowBar, apiUnfollowBar,
+  apiLikePost, apiUnlikePost, apiForwardPost, normalizePosts
+} from '../../utils/api'
+import { requireLogin } from '../../utils/store'
 
 // 状态栏高度（H5 为 0，App/小程序用于适配刘海屏）
 const statusBarHeight = uni.getSystemInfoSync().statusBarHeight || 0
 
-// 吧信息
-const barInfo = ref({
-  img: '',
-  name: '前端吧',
-  owner: '阿华',
-  posts: '2.3万',
-  members: '1.2万',
-  followed: false
-})
+// 吧信息（来自 GET /bars/{id}/posts 返回的 bar 字段）
+const barInfo = ref({ img: '', name: '', owner: '', posts: '0', members: '0', followed: false })
 
-// 接收上一页传入的吧 id 与吧名
+// 帖子列表（后端分页）
+const posts = ref([])
+const page = ref(1)
+const pageSize = 10
+const hasMore = ref(false)
+
 let barId = 1
 
-onLoad((options) => {
-  if (options.id) barId = Number(options.id)
-  const bar = getBar(barId)
-  if (bar) {
-    barInfo.value.name = bar.name
-    barInfo.value.img = bar.img
+/** 拉取吧内帖子（reset=true 从第一页开始；否则加载下一页） */
+async function load(reset = true) {
+  try {
+    const data = await apiBarPosts(barId, { page: reset ? 1 : page.value, pageSize })
+    barInfo.value = data.bar
+    const list = normalizePosts(data.list)
+    posts.value = reset ? list : posts.value.concat(list)
+    page.value = data.page
+    hasMore.value = !!data.hasMore
+  } catch (e) {
+    if (reset) {
+      posts.value = []
+      hasMore.value = false
+    }
   }
-  barInfo.value.followed = isFollowedBar(barId)
-  posts.value = getPostsByBar(barId)
+}
+
+onLoad(async (options) => {
+  if (options.id) barId = Number(options.id)
+  await load(true)
+  // 记录足迹：进过这个吧（数据库 footprints 表；未登录会被忽略，失败也不打扰）
+  apiVisitBar(barId).catch(() => {})
 })
 
-// 吧内帖子列表（白色圆角卡片）
-const posts = ref([])
+/** 触底加载更多 */
+onReachBottom(() => {
+  if (!hasMore.value) return
+  page.value += 1
+  load(false)
+})
 
 function goBack() {
   uni.navigateBack()
@@ -143,28 +163,43 @@ function onShare() {
   uni.showToast({ title: '分享功能开发中', icon: 'none' })
 }
 
-function toggleFollow() {
+/** 关注 / 取关（数据库 follows 表，后端返回最新的 followed 与关注数） */
+async function toggleFollow() {
   if (!requireLogin()) return
-  barInfo.value.followed = toggleFollowBar(barId)
+  try {
+    const res = barInfo.value.followed ? await apiUnfollowBar(barId) : await apiFollowBar(barId)
+    barInfo.value.followed = !!res.followed
+    if (res.members) barInfo.value.members = res.members
+  } catch (e) {
+    // 错误提示已由请求层处理
+  }
 }
 
-function forward(p) {
+/** 转发（数据库 posts.forward_count +1） */
+async function forward(p) {
   if (!requireLogin()) return
-  const updated = forwardPost(p.id)
-  if (updated) p.forwards = updated.forwards
-  uni.showToast({ title: '转发成功', icon: 'none' })
+  try {
+    const res = await apiForwardPost(p.id)
+    p.forwards = res.forwards
+    uni.showToast({ title: '转发成功', icon: 'none' })
+  } catch (e) {
+    // 错误提示已由请求层处理
+  }
 }
 
 function goDetail(p) {
   uni.navigateTo({ url: '/pages/detail/detail?id=' + p.id })
 }
 
-function toggleLike(p) {
+/** 点赞 / 取消（后端返回最新的 liked 与点赞数） */
+async function toggleLike(p) {
   if (!requireLogin()) return
-  const updated = likePost(p.id)
-  if (updated) {
-    p.liked = updated.liked
-    p.likes = updated.likes
+  try {
+    const res = p.liked ? await apiUnlikePost(p.id) : await apiLikePost(p.id)
+    p.liked = res.liked
+    p.likes = res.likes
+  } catch (e) {
+    // 错误提示已由请求层处理
   }
 }
 
@@ -230,3 +265,5 @@ function goPublish() {
 .fab { position: fixed; right: 40rpx; bottom: 120rpx; width: 100rpx; height: 100rpx; border-radius: 50%; background: #ff2d55; display: flex; align-items: center; justify-content: center; box-shadow: 0 8rpx 24rpx rgba(255,45,85,0.4); }
 .fab-plus { font-size: 60rpx; color: #fff; line-height: 1; }
 </style>
+
+

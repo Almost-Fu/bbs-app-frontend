@@ -4,13 +4,13 @@
       <view
         v-for="t in tabs" :key="t.key"
         class="tab" :class="{ active: activeTab === t.key }"
-        @tap="activeTab = t.key"
+        @tap="switchTab(t.key)"
       >{{ t.text }}</view>
     </view>
 
-    <view v-if="filtered.length === 0" class="empty">暂无消息</view>
+    <view v-if="filtered.length === 0" class="empty">{{ getCurrentUser() ? '暂无消息' : '登录后查看互动消息' }}</view>
 
-    <view v-for="m in filtered" :key="m.id" class="msg-item">
+    <view v-for="m in filtered" :key="m.id" class="msg-item" @tap="goPost(m)">
       <view class="m-avatar">{{ m.avatar }}</view>
       <view class="m-body">
         <view class="m-title">
@@ -29,7 +29,9 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { setUnreadCount } from '../../utils/store'
+// 互动消息全部来自数据库：由 likes / comments 聚合而成（谁赞了我的帖、谁评论了我的帖、谁在评论里 @我）
+import { apiNotifications, apiReadNotifications } from '../../utils/api'
+import { getCurrentUser } from '../../utils/store'
 
 const activeTab = ref('like')
 
@@ -39,20 +41,49 @@ const tabs = [
   { key: 'at', text: '@我的' }
 ]
 
-// 占位数据：后续接后端接口换成真实消息
-const messages = ref([
-  { id: 1, type: 'like', avatar: '🧑‍💻', name: '爱折腾的程序员', action: '赞了你的帖子', content: '《uniapp 到底能不能替代原生开发？》', time: '10:23' },
-  { id: 2, type: 'reply', avatar: '👩‍🎓', name: '前端小白', action: '回复了你', content: '带我一个！我也在学前端。', time: '09:15' },
-  { id: 3, type: 'at', avatar: '🍜', name: '干饭人', action: '@了你', content: '这家店真的绝，改天一起去吃！', time: '昨天' },
-  { id: 4, type: 'like', avatar: '📚', name: '读书吧', action: '赞了你的评论', content: '写得真好，收藏了。', time: '昨天' },
-  { id: 5, type: 'reply', avatar: '🎮', name: '游戏吧', action: '回复了你', content: '周六开黑吗？', time: '3天前' }
-])
+// 页面分类 → 后端消息类型
+const TYPE_OF_TAB = { like: 'like', reply: 'reply', at: 'mention' }
 
-const filtered = computed(() => messages.value.filter(m => m.type === activeTab.value))
+const messages = ref([])
 
-onShow(() => {
-  setUnreadCount(0)
-  uni.$emit('unreadChange', 0)
+/** 拉取当前分类的互动消息 */
+async function load() {
+  if (!getCurrentUser()) {
+    messages.value = []
+    return
+  }
+  try {
+    const data = await apiNotifications(TYPE_OF_TAB[activeTab.value])
+    messages.value = data.list || []
+  } catch (e) {
+    messages.value = []
+  }
+}
+
+const filtered = computed(() => messages.value)
+
+/** 切换分类：重新向后端要这一类消息 */
+function switchTab(key) {
+  activeTab.value = key
+  load()
+}
+
+/** 点消息跳到对应帖子 */
+function goPost(m) {
+  if (m.postId) uni.navigateTo({ url: '/pages/detail/detail?id=' + m.postId })
+}
+
+onShow(async () => {
+  await load()
+  // 进入消息页即视为已读：推进服务器端的已读位置，并通知 tab-bar 清角标
+  if (getCurrentUser()) {
+    try {
+      await apiReadNotifications()
+    } catch (e) {
+      // 忽略：角标不是关键路径
+    }
+    uni.$emit('unreadChange', 0)
+  }
 })
 </script>
 

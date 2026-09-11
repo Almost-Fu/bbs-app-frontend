@@ -1,14 +1,14 @@
 // ---------------------------------------------------------------------------
-// 后端接口封装（核心页面使用）
+// 后端接口封装（★ 所有页面的数据都从这里取，数据只有一个来源：数据库）
 //   底层：utils/request.js（uni.request 封装：自动带 token、统一响应体、错误提示）
 //   地址：utils/config.js（开发=本地 127.0.0.1:8000，发行=Render 线上域名）
 //
-//   覆盖范围（B 方案）：登录注册、首页信息流、帖子详情、评论、帖子点赞/收藏、关注贴吧
-//   未接后端的页面（进吧瀑布流、发布、消息、我的帖子/收藏等）继续使用 utils/store.js 的本地数据
+//   数据来源说明（2026-09 数据收口后）：
+//     · 全部社区数据（帖子 / 评论 / 贴吧 / 收藏 / 关注 / 足迹 / 消息 / 资料）都来自数据库
+//     · utils/store.js 只保留「设备私有状态」：登录态 token、当前用户缓存、搜索历史
 // ---------------------------------------------------------------------------
-import { http } from './request'
-import { resolveImageUrl } from './config'
-import { getBars } from './store'
+import { http, getToken } from './request'
+import { resolveImageUrl, API_BASE_URL } from './config'
 
 // ------------------------------- 认证 -------------------------------
 /** 登录 → { token, tokenType, expiresIn, user } */
@@ -27,9 +27,30 @@ export function apiMe() {
 }
 
 // ------------------------------- 贴吧 -------------------------------
-/** 贴吧列表（登录状态下每项带 followed） */
+/** 贴吧列表（登录状态下每项带 followed）；顺带缓存吧图供列表页使用 */
 export function apiBars(keyword) {
-  return http.get('/bars', keyword ? { keyword } : {})
+  return http.get('/bars', keyword ? { keyword } : {}).then((bars) => {
+    cacheBars(bars)
+    return bars
+  })
+}
+
+/** 贴吧详情（吧页头部：吧名 / 吧主 / 帖数 / 关注数 / 是否已关注） */
+export function apiBarDetail(barId) {
+  return http.get(`/bars/${barId}`).then((bar) => {
+    cacheBars([bar])
+    return bar
+  })
+}
+
+/** 吧内帖子分页 → { bar, list, page, pageSize, total, totalPages, hasMore } */
+export function apiBarPosts(barId, params = {}) {
+  return http.get(`/bars/${barId}/posts`, { page: 1, pageSize: 10, ...params })
+}
+
+/** 记录足迹：我进过这个吧（幂等；失败也不打扰用户） */
+export function apiVisitBar(barId) {
+  return http.post(`/bars/${barId}/visit`, {}, { silent: true })
 }
 
 /** 我关注的吧（需登录） */
@@ -88,17 +109,125 @@ export function apiUnlikeComment(commentId) {
   return http.del(`/comments/${commentId}/like`)
 }
 
+// --------------------------- 转发 ---------------------------
+/** 转发帖子 → { id, forwards } */
+export function apiForwardPost(postId) {
+  return http.post(`/posts/${postId}/forward`)
+}
+
+// --------------------------- 我的（后端「我」系列） ---------------------------
+/** 我的帖子（分页） */
+export function apiMyPosts(params = {}) {
+  return http.get('/users/me/posts', { page: 1, pageSize: 10, ...params })
+}
+
+/** 我的收藏（分页） */
+export function apiMyFavorites(params = {}) {
+  return http.get('/users/me/favorites', { page: 1, pageSize: 10, ...params })
+}
+
+/** 我的足迹（进过的吧，含"上次浏览后新增帖数"角标） */
+export function apiFootprints(limit = 12) {
+  return http.get('/users/me/footprints', { limit })
+}
+
+/** 修改我的资料（昵称 / 头像）→ 返回最新的用户信息 */
+export function apiUpdateMe(payload) {
+  return http.patch('/users/me', payload)
+}
+
+// --------------------------- 搜索 ---------------------------
+/** 搜索帖子（分页） */
+export function apiSearch(keyword, params = {}) {
+  return http.get('/search', { keyword, page: 1, pageSize: 10, ...params })
+}
+
+// --------------------------- 互动消息 ---------------------------
+/** 互动消息：type = all / like / reply / mention */
+export function apiNotifications(type = 'all', params = {}) {
+  return http.get('/users/me/notifications', { type, page: 1, pageSize: 20, ...params })
+}
+
+/** 未读互动消息数（tab-bar 角标） */
+export function apiUnreadCount() {
+  return http.get('/users/me/notifications/unread', {}, { silent: true })
+}
+
+/** 标记互动消息已读（角标清零） */
+export function apiReadNotifications() {
+  return http.post('/users/me/notifications/read')
+}
+
+// --------------------------- 发布（multipart 上传） ---------------------------
+/**
+ * 发布帖子（可带图）—— 走 uni.uploadFile 的 multipart/form-data
+ * @param {object} payload
+ * @param {number} payload.barId 发到哪个吧
+ * @param {string} payload.title
+ * @param {string} payload.content
+ * @param {string} [payload.tag] 分类标签
+ * @param {string[]} [payload.filePaths] 本地图片路径（uni.chooseImage 的 tempFilePaths）
+ * @returns {Promise<object>} 新建的帖子（含 id / images）
+ */
+export function apiCreatePost({ barId, title, content, tag, filePaths = [] }) {
+  const token = getToken()
+  return new Promise((resolve, reject) => {
+    const options = {
+      url: `${API_BASE_URL}/posts`,
+      name: 'files',
+      formData: { barId, title, content, tag: tag || '未分类' },
+      header: token ? { Authorization: `Bearer ${token}` } : {},
+      timeout: 60000,
+      success: (res) => {
+        let body = res.data
+        try {
+          body = typeof body === 'string' ? JSON.parse(body) : body
+        } catch (e) {
+          uni.showToast({ title: '返回数据解析失败', icon: 'none' })
+          return reject(new Error('parse error'))
+        }
+        if (body && body.code === 0) return resolve(body.data)
+        const msg = (body && body.message) || '发布失败'
+        uni.showToast({ title: msg, icon: 'none' })
+        reject(new Error(msg))
+      },
+      fail: (err) => {
+        uni.showToast({ title: '网络异常，发布失败', icon: 'none' })
+        reject(err)
+      }
+    }
+    const paths = (filePaths || []).filter(Boolean)
+    if (paths.length === 1) {
+      // 单图：filePath + name（各端兼容性最好）
+      options.filePath = paths[0]
+    } else if (paths.length > 1) {
+      // 多图：files 数组（App / H5 都支持）
+      options.files = paths.map((p) => ({ name: 'files', uri: p }))
+    }
+    uni.uploadFile(options)
+  })
+}
+
 // --------------------------- 数据归一化助手 ---------------------------
-/** 按吧 id 取前端本地吧图（后端吧图的 image 字段可能为空） */
+// 吧图缓存：由 apiBars() / apiBarDetail() 填充，值来自数据库 bars.image
+const barImageCache = {}
+
+/** 缓存一批吧图（后端 bars.image，形如 /static/images/bars/前端.jpg） */
+export function cacheBars(bars = []) {
+  ;(bars || []).forEach((b) => {
+    if (b && b.id != null) barImageCache[b.id] = b.img || ''
+  })
+}
+
+/** 按吧 id 取吧图（取不到返回空字符串，页面用 v-if 兜底） */
 export function barImgOf(barId) {
-  const bar = getBars().find((b) => b.id === barId)
-  return bar ? bar.img : ''
+  return barImageCache[barId] || ''
 }
 
 /**
  * 把后端返回的帖子整理成页面直接可用的结构：
  *   - images：/uploads/... 这类相对地址补成完整域名（外链原样返回）
- *   - barImg：后端为空时回落到前端本地吧图，保证卡片上的吧标好看
+ *   - barImg：直接用数据库给的吧图，为空时回落到已缓存的吧图
  */
 export function normalizePost(post) {
   if (!post) return post

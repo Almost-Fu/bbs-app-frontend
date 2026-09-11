@@ -84,45 +84,74 @@
 <script setup>
 import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { getFootprints, getFollowedBars, getBars } from '../../utils/store'
+// 进吧页数据全部来自数据库：贴吧列表 / 我关注的吧 / 我的足迹
+import { apiBars, apiFollowedBars, apiFootprints } from '../../utils/api'
+import { getCurrentUser } from '../../utils/store'
 
 // 状态栏高度（H5 为 0，App/小程序用于适配刘海屏）
 const statusBarHeight = uni.getSystemInfoSync().statusBarHeight || 0
 
-// 足迹 / 关注的吧：游客为空，登录后展示
+// 足迹 / 关注的吧 / 全部贴吧（全部来自后端）
 const footprints = ref([])
 const followBars = ref([])
+const allBars = ref([])
 
-onShow(() => {
-  footprints.value = getFootprints()
-  followBars.value = getFollowedBars().map(id => {
-    const b = getBars().find(x => x.id === id)
-    return b ? { id: b.id, icon: b.icon, name: b.name, desc: '已关注' } : null
-  }).filter(Boolean)
-})
-
-// 吧单：集合内是相关贴吧（层级：集合 > 贴吧 > 帖子）
-// 每个贴吧卡片：最新的帖子图片 + 吧头像 + 吧名（参考百度贴吧进吧）
-// 集合只声明“包含哪些吧”，吧名 / 吧图 / 吧 icon 统一取自 store 的 getBars()，避免重复维护同一份数据
+// 吧单：集合只声明"包含哪些吧"（按数据库返回的顺序切分），吧名 / 吧图统一取接口结果
 const GROUP_DEFS = [
-  { id: 1, title: '热门推荐', limit: 4, barIds: [1, 2, 3, 4, 5, 6, 7, 8] },
-  { id: 2, title: '兴趣圈', limit: 4, barIds: [9, 10, 11, 12, 13, 14, 15, 16] }
+  { id: 1, title: '热门推荐', limit: 4, from: 0, to: 8 },
+  { id: 2, title: '兴趣圈', limit: 4, from: 8, to: 16 }
 ]
 
-const barGroups = ref(GROUP_DEFS.map(g => ({
-  id: g.id,
-  title: g.title,
-  limit: g.limit,
-  expanded: false,
-  bars: g.barIds
-    .map(id => getBars().find(b => b.id === id))
-    .filter(Boolean)
-    .map(b => ({ id: b.id, icon: b.icon, name: b.name }))
-})))
+const barGroups = ref(
+  GROUP_DEFS.map(g => ({ id: g.id, title: g.title, limit: g.limit, expanded: false, bars: [] }))
+)
 
-// 吧图：按吧 id 返回 static 本地吧图（static/images/bars/）
+/** 贴吧列表到位后按分组切分 */
+function rebuildGroups() {
+  barGroups.value = GROUP_DEFS.map(g => ({
+    id: g.id,
+    title: g.title,
+    limit: g.limit,
+    expanded: false,
+    bars: allBars.value.slice(g.from, g.to).map(b => ({ id: b.id, icon: b.icon, name: b.name, img: b.img }))
+  }))
+}
+
+async function load() {
+  // 1) 全部贴吧（数据来自数据库，含吧图；同时会填好 api.js 里的吧图缓存）
+  try {
+    allBars.value = (await apiBars()) || []
+  } catch (e) {
+    allBars.value = []
+  }
+  rebuildGroups()
+
+  // 2) 游客到此为止：足迹与关注的吧需要登录
+  if (!getCurrentUser()) {
+    footprints.value = []
+    followBars.value = []
+    return
+  }
+
+  // 3) 我的足迹（footprints 表）/ 我关注的吧（follows 表）
+  try {
+    footprints.value = await apiFootprints(10)
+  } catch (e) {
+    footprints.value = []
+  }
+  try {
+    const bars = await apiFollowedBars()
+    followBars.value = (bars || []).map(b => ({ id: b.id, icon: b.icon, name: b.name, img: b.img, desc: '已关注' }))
+  } catch (e) {
+    followBars.value = []
+  }
+}
+
+onShow(() => load())
+
+// 吧图：按吧 id 从已加载的数据库结果里取
 function barImgOf(id) {
-  const b = getBars().find(x => x.id === id)
+  const b = allBars.value.find(x => x.id === id)
   return b ? b.img : ''
 }
 
@@ -132,7 +161,7 @@ function goBar(b) {
 }
 
 // 瀑布流左右分列（奇偶分配，卡片上下拼合不留空）
-// 折叠时也渲染全部贴吧，由固定高度容器 + overflow:hidden 裁剪，被裁剪的贴吧自然露出“半截”
+// 折叠时也渲染全部贴吧，由固定高度容器 + overflow:hidden 裁剪，被裁剪的贴吧自然露出"半截"
 function leftBars(g) {
   return g.bars.filter((_, i) => i % 2 === 0)
 }

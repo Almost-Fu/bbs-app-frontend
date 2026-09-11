@@ -53,7 +53,9 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { searchPosts, getSearchHistory, addSearchHistory, clearSearchHistory } from '../../utils/store'
+// 搜索走后端 GET /api/search；搜索历史属于本机记录，仍存本地
+import { apiSearch, normalizePosts } from '../../utils/api'
+import { getSearchHistory, addSearchHistory, clearSearchHistory } from '../../utils/store'
 
 const keyword = ref('')
 const result = ref([])
@@ -61,6 +63,21 @@ const history = ref([])
 const hotWords = ['前端', 'Vue3', '面试', '美食', '游戏', '读书']
 
 let timer = null
+
+/** 向后端要搜索结果 */
+async function doQuery(kw) {
+  const word = String(kw || '').trim()
+  if (!word) {
+    result.value = []
+    return
+  }
+  try {
+    const data = await apiSearch(word)
+    result.value = normalizePosts(data.list)
+  } catch (e) {
+    result.value = []
+  }
+}
 
 // 输入防抖：停止输入 300ms 后实时搜索
 watch(keyword, (v) => {
@@ -70,9 +87,7 @@ watch(keyword, (v) => {
     result.value = []
     return
   }
-  timer = setTimeout(() => {
-    result.value = searchPosts(kw)
-  }, 300)
+  timer = setTimeout(() => doQuery(kw), 300)
 })
 
 onShow(() => {
@@ -85,7 +100,7 @@ function doSearch() {
   if (!kw) return
   addSearchHistory(kw)
   history.value = getSearchHistory()
-  result.value = searchPosts(kw)
+  doQuery(kw)
 }
 
 function clearKeyword() {

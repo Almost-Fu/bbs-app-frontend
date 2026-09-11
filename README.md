@@ -1,7 +1,8 @@
 # 🏠 贴吧社区（bbs-app-frontend）
 
-一个基于 **uni-app + Vue3** 的贴吧/社区类前端练习项目，**页面与交互仿照百度贴吧 App**（帖子信息流、进吧/关注、吧内详情、发布帖子、评论点赞、游客鉴权等）。
-纯前端实现，用本地存储（Storage）模拟后端，无需启动服务器即可完整跑通所有功能。
+一个基于 **uni-app + Vue3** 的贴吧/社区前端项目，**页面与交互仿照百度贴吧 App**（帖子信息流、进吧/关注、吧内详情、发布帖子、评论点赞、互动消息、游客鉴权等）。
+**数据全部来自后端**：FastAPI 接口（部署在 Render）+ MySQL（Aiven 云数据库）；本机只保留登录态与搜索历史。
+配套仓库：`bbs-app-backend`（接口服务）、`bbs-admin-web`（管理后台）。
 
 ---
 
@@ -11,8 +12,9 @@
 |---|---|
 | uni-app | 一套代码可编译到 H5 / 微信小程序 / App |
 | Vue3 | `<script setup>` 组合式 API（ref / computed / watch） |
-| JavaScript | 无 TypeScript，逻辑统一封装在数据层 |
-| Storage | `uni.getStorageSync / setStorageSync` 模拟后端数据库 |
+| JavaScript | 无 TypeScript，接口调用统一封装在 `utils/api.js` |
+| 后端接口 | FastAPI（Render），统一响应体 `{code, message, data}` |
+| 数据库 | MySQL（Aiven 云库），表结构见 `bbs-app-backend/sql/bbs_schema.sql` |
 
 ## 🚀 运行方式
 
@@ -20,13 +22,14 @@
 2. 菜单栏「运行 → 运行到浏览器」即可预览 H5 版
 3. 也可「运行到小程序模拟器」验证多端兼容
 
-> 首次运行会自动初始化种子数据（帖子、评论、关注等），见 `utils/store.js`。
+> 数据来自后端接口：本地联调先启动 `bbs-app-backend`（`python main.py` → 127.0.0.1:8000）；
+> H5 / APK 发行时用的是 `utils/config.js` 里的线上地址（Render）。
 
 ## 📁 目录结构
 
 ```
 bbs-app-frontend/
-├── App.vue                  # 应用入口（onLaunch 调用 initStore 初始化数据）
+├── App.vue                  # 应用入口（onLaunch 调用 initStore 初始化本机状态）
 ├── main.js                  # Vue3 入口（createSSRApp）
 ├── pages.json               # 页面注册 / 路由 / 全局样式
 ├── manifest.json            # 应用配置（H5 / 小程序 / App）
@@ -50,7 +53,10 @@ bbs-app-frontend/
 │   ├── tab-bar/             # 底部导航（easycom 免注册，含未读角标）
 │   └── post-card/           # 帖子卡片（旧组件，当前未使用）
 ├── utils/
-│   └── store.js             # ★ 数据层：统一封装 Storage 读写
+│   ├── config.js            # ★ 后端地址（本地 / 线上只改这一个文件）
+│   ├── request.js           # uni.request 封装：带 token、统一响应体、错误提示
+│   ├── api.js               # ★ 所有接口（帖子/吧/评论/收藏/关注/足迹/消息/资料/发图）
+│   └── store.js             # 只存"设备私有状态"：登录态缓存 + 搜索历史
 └── static/
     └── images/              # 本地图片素材（bars：吧图 / avatars：头像 / posts：帖子图）
 ```
@@ -81,24 +87,35 @@ bbs-app-frontend/
 
 ### 其他
 - 搜索：输入防抖实时搜索、搜索历史（最多 10 条可清空）、热门词、关键词高亮
-- 消息中心：点赞 / 回复 / @我 三个分类，进入清零未读角标（`uni.$emit` 联动 tab-bar）
-- 设置：清空搜索历史、一键重置全部本地数据
+- 消息中心：点赞 / 回复 / @我 三个分类（消息由后端按真实互动聚合），进入即标记已读
+- 设置：清空搜索历史、清除本机缓存（含退出登录）
 
-## 🔐 数据层设计（utils/store.js）
+## 🔐 数据来源（只有一个：数据库）
 
-用本地存储模拟后端，所有页面共享同一份数据，保证联动。
+App 端**所有会变化的数据都由后端接口提供**，页面不再读写本地"假数据"：
+
+| 数据 | 接口 | 落在哪张表 |
+|---|---|---|
+| 帖子信息流 / 详情 / 搜索 | `GET /api/posts`、`/api/posts/{id}`、`/api/search` | `posts`、`post_images` |
+| 发布帖子（含多图上传） | `POST /api/posts`（multipart） | `posts`、`post_images` |
+| 点赞 / 收藏 / 转发 | `POST|DELETE /api/posts/{id}/like`、`/favorite`、`POST /forward` | `likes`、`favorites`、`posts.forward_count` |
+| 评论 / 评论点赞 | `GET|POST /api/posts/{id}/comments`、`/api/comments/{id}/like` | `comments`、`likes` |
+| 贴吧列表 / 吧内帖子 / 吧详情 | `GET /api/bars`、`/api/bars/{id}/posts`、`/api/bars/{id}` | `bars`、`posts` |
+| 关注吧 / 足迹 | `POST|DELETE /api/bars/{id}/follow`、`POST /api/bars/{id}/visit`、`GET /api/users/me/footprints` | `follows`、`footprints` |
+| 我的帖子 / 我的收藏 | `GET /api/users/me/posts`、`/api/users/me/favorites` | `posts`、`favorites` |
+| 互动消息（点赞 / 回复 / @我） | `GET /api/users/me/notifications`（+ `unread`、`read`） | 由 `likes`、`comments` 聚合 |
+| 编辑资料 | `PATCH /api/users/me` | `users` |
+| 登录 / 注册 / 当前用户 | `POST /api/auth/login`、`/register`、`GET /api/auth/me` | `users` |
+
+本机 Storage 只保留「设备私有状态」，这些**不进数据库**：
 
 | Storage Key | 存什么 |
 |---|---|
-| `bbs_posts` | 帖子（含点赞/转发状态） |
-| `bbs_comments` | 评论（按帖子 id 分组） |
-| `bbs_favorites` | 收藏的帖子 id |
-| `bbs_followed_bars` | 关注的吧 id |
-| `bbs_search_history` | 搜索历史 |
-| `bbs_users` / `bbs_current_user` | 用户列表 / 当前登录用户 |
-| `bbs_unread` | 未读消息数 |
+| `bbs_token` | 登录 token（`utils/request.js` 自动加到请求头） |
+| `bbs_current_user` | 当前用户缓存（首屏秒开，随后用 `/auth/me` 刷新） |
+| `bbs_search_history` | 搜索历史（本机记录，最多 10 条） |
 
-> 重置：`pages/settings/settings.vue`「重置本地数据」，会清空并重新初始化种子数据。
+> 设置页「清除本机缓存（含登录状态）」= 清空上面这三项；**服务器上的帖子、收藏、关注等不受影响**。
 
 ## 🧭 页面路由（pages.json）
 
