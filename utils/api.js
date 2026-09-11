@@ -214,6 +214,9 @@ export const AVATAR_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8]
   .map((i) => `/static/avatars/avatar-${i}.png`)
   .concat([DEFAULT_AVATAR])
 
+// 便捷再导出：图片地址工具（页面可以直接从 api.js 引入，不必再多引一个 config.js）
+export { resolveImageUrl } from './config'
+
 /**
  * 头像地址：数据库里存的是 /static/avatars/xxx.png（相对后端），这里补成完整地址
  * @param {object|string} userOrPath 用户对象（取 avatar）或直接的路径
